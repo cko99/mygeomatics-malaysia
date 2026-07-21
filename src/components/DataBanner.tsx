@@ -1,0 +1,2 @@
+import { Info } from 'lucide-react'; import { Link } from 'react-router-dom'; import { dataStatus } from '../data'; import { formatDateMY } from '../utils/data';
+export function DataBanner(){return <aside className="data-banner"><Info size={18}/><p><strong>Public prototype.</strong> Records are compiled from public sources and remain under review. Only organisations with reviewed coordinates are displayed on the map. <Link to="/data-status">Snapshot {formatDateMY(dataStatus.snapshotDate)}</Link></p></aside>}

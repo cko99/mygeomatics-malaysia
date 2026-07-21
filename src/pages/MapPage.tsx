@@ -1,0 +1,2 @@
+import { Link } from 'react-router-dom'; import { dataStatus } from '../data'; import { LazyMapView } from '../components/LazyMapView';
+export function MapPage(){return <><div className="map-page-head"><div><p>{dataStatus.mapReadyLocations} map-ready locations · {dataStatus.locations} directory locations</p></div><Link to="/companies" className="button secondary">Open directory</Link></div><LazyMapView/></>}
