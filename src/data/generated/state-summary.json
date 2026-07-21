@@ -1,0 +1,121 @@
+[
+  {
+    "state": "Sarawak",
+    "uniqueOrganizations": 47,
+    "locations": 47,
+    "hiringSignals": 0,
+    "mapReady": 0
+  },
+  {
+    "state": "Sabah",
+    "uniqueOrganizations": 45,
+    "locations": 45,
+    "hiringSignals": 1,
+    "mapReady": 0
+  },
+  {
+    "state": "Selangor",
+    "uniqueOrganizations": 35,
+    "locations": 35,
+    "hiringSignals": 6,
+    "mapReady": 0
+  },
+  {
+    "state": "Kuala Lumpur",
+    "uniqueOrganizations": 18,
+    "locations": 18,
+    "hiringSignals": 6,
+    "mapReady": 0
+  },
+  {
+    "state": "Putrajaya",
+    "uniqueOrganizations": 8,
+    "locations": 8,
+    "hiringSignals": 0,
+    "mapReady": 0
+  },
+  {
+    "state": "Johor",
+    "uniqueOrganizations": 5,
+    "locations": 5,
+    "hiringSignals": 1,
+    "mapReady": 0
+  },
+  {
+    "state": "Bangkok",
+    "uniqueOrganizations": 4,
+    "locations": 4,
+    "hiringSignals": 4,
+    "mapReady": 0
+  },
+  {
+    "state": "Jakarta",
+    "uniqueOrganizations": 4,
+    "locations": 4,
+    "hiringSignals": 4,
+    "mapReady": 0
+  },
+  {
+    "state": "Negeri Sembilan",
+    "uniqueOrganizations": 3,
+    "locations": 3,
+    "hiringSignals": 2,
+    "mapReady": 0
+  },
+  {
+    "state": "Brunei-Muara",
+    "uniqueOrganizations": 2,
+    "locations": 2,
+    "hiringSignals": 1,
+    "mapReady": 0
+  },
+  {
+    "state": "Melaka",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 0,
+    "mapReady": 0
+  },
+  {
+    "state": "Kedah",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 0,
+    "mapReady": 0
+  },
+  {
+    "state": "Kelantan",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 0,
+    "mapReady": 0
+  },
+  {
+    "state": "Pahang",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 1,
+    "mapReady": 0
+  },
+  {
+    "state": "Rayong",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 1,
+    "mapReady": 0
+  },
+  {
+    "state": "North Maluku",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 1,
+    "mapReady": 0
+  },
+  {
+    "state": "Perak",
+    "uniqueOrganizations": 1,
+    "locations": 1,
+    "hiringSignals": 0,
+    "mapReady": 0
+  }
+]

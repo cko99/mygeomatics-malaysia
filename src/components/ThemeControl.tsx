@@ -1,0 +1,2 @@
+import { Moon, Sun, Monitor } from 'lucide-react'; import { useTheme, type Theme } from '../app/theme';
+export function ThemeControl(){const{theme,setTheme}=useTheme();const options:[Theme,typeof Sun][]=[['light',Sun],['dark',Moon],['system',Monitor]];return <div className="theme-control" aria-label="Theme preference">{options.map(([value,Icon])=><button key={value} className={theme===value?'active':''} aria-label={`${value} theme`} aria-pressed={theme===value} onClick={()=>setTheme(value)}><Icon size={16}/></button>)}</div>}

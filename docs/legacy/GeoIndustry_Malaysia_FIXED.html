@@ -1,0 +1,2100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GeoIndustry Malaysia — Discover Malaysia's Geomatics Industry</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+<link href="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+<script src="https://unpkg.com/maplibre-gl@3.6.2/dist/maplibre-gl.js"></script>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+        colors: {
+          ink: { 900: '#0f172a', 800: '#1e293b', 700: '#334155', 600: '#475569', 500: '#64748b', 400: '#94a3b8', 300: '#cbd5e1', 200: '#e2e8f0', 100: '#f1f5f9', 50: '#f8fafc' },
+        },
+      },
+    },
+  };
+</script>
+<style>
+  * { -webkit-tap-highlight-color: transparent; }
+  html, body { font-family: 'Inter', system-ui, sans-serif; background: #f8fafc; color: #0f172a; }
+  body { overflow: hidden; }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
+  ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+  .maplibregl-popup-content { border-radius: 12px !important; padding: 0 !important; box-shadow: 0 10px 40px rgba(0,0,0,.12) !important; overflow: hidden; }
+  .maplibregl-popup-tip { display: none !important; }
+  .maplibregl-ctrl-attrib { font-size: 10px !important; }
+  @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+  @keyframes slideInLeft { from { transform: translateX(-100%); } to { transform: translateX(0); } }
+  @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .anim-slide-in { animation: slideIn .3s ease-out; }
+  .anim-slide-in-left { animation: slideInLeft .3s ease-out; }
+  .anim-fade-in { animation: fadeIn .2s ease-out; }
+  .anim-slide-up { animation: slideUp .3s ease-out; }
+  .focus-ring:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }
+  .line-clamp-2 { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .line-clamp-3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .chart-bar { transition: height 0.6s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.2s; }
+  .chart-bar:hover { opacity: 0.85; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+window.addEventListener('error', function (event) {
+  const root = document.getElementById('root');
+  if (!root || root.children.length > 0) return;
+  root.innerHTML = `
+    <div style="min-height:100vh;display:grid;place-items:center;padding:24px;background:#f8fafc;font-family:Inter,system-ui,sans-serif;color:#0f172a">
+      <div style="max-width:680px;background:white;border:1px solid #e2e8f0;border-radius:16px;padding:24px;box-shadow:0 10px 30px rgba(15,23,42,.08)">
+        <h1 style="margin:0 0 8px;font-size:20px">GeoIndustry Malaysia gagal dimuatkan</h1>
+        <p style="margin:0 0 12px;color:#475569;line-height:1.6">Semak sambungan internet dan buka fail melalui local web server. Aplikasi ini memuatkan React, HTM, Tailwind dan MapLibre daripada CDN.</p>
+        <pre style="white-space:pre-wrap;margin:0;padding:12px;border-radius:10px;background:#f1f5f9;color:#b91c1c;font-size:12px">${event.message || 'Unknown loading error'}</pre>
+      </div>
+    </div>`;
+});
+</script>
+<script type="module">
+import htm from 'https://esm.sh/htm@3.1.1';
+const html = htm.bind(React.createElement);
+const { useState, useEffect, useRef, useMemo, useCallback, createContext, useContext } = React;
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CONSTANTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const SECTORS = {
+  'GIS and Geospatial':               { color: '#0d9488', short: 'GIS' },
+  'Land Surveying':                    { color: '#2563eb', short: 'Survey' },
+  'Engineering Survey':                { color: '#7c3aed', short: 'Eng' },
+  'Utility Mapping':                   { color: '#ea580c', short: 'Util' },
+  'Underground Utility Detection':     { color: '#c2410c', short: 'UUD' },
+  'Hydrography':                       { color: '#0891b2', short: 'Hydro' },
+  'Drone and UAV':                     { color: '#65a30d', short: 'Drone' },
+  'Photogrammetry':                    { color: '#ca8a04', short: 'Photo' },
+  'Remote Sensing':                    { color: '#dc2626', short: 'RS' },
+  'Mapping and Cartography':           { color: '#db2777', short: 'Map' },
+  'GNSS and Survey Equipment':         { color: '#4f46e5', short: 'GNSS' },
+  'Geospatial Software':               { color: '#0d9488', short: 'GeoSW' },
+  'Urban Planning':                    { color: '#9333ea', short: 'Plan' },
+  'Environmental and Forestry':        { color: '#16a34a', short: 'Env' },
+  'Construction and Infrastructure':   { color: '#f97316', short: 'Constr' },
+  'Asset Mapping and Data Collection': { color: '#6b7280', short: 'Asset' },
+  'Technical Sales and Support':       { color: '#0284c7', short: 'Sales' },
+  'Government Agency':                 { color: '#b91c1c', short: 'Gov' },
+  'Education and Research':            { color: '#0891b2', short: 'Edu' },
+};
+
+const SECTOR_NAMES = Object.keys(SECTORS);
+
+const ORG_TYPES = [
+  'Private Company','Government Agency','Statutory Body','University',
+  'Research Institution','Equipment Vendor','Software Company','Consultant',
+  'Contractor','Training Provider'
+];
+
+const MALAYSIAN_STATES = [
+  'Selangor','Kuala Lumpur','Johor','Penang','Kedah','Perlis','Perak',
+  'Negeri Sembilan','Melaka','Pahang','Terengganu','Kelantan','Sabah','Sarawak',
+  'Putrajaya','Labuan'
+];
+
+const LOCATION_PRESETS = [
+  { name: 'Shah Alam', lat: 3.0738, lng: 101.5183 },
+  { name: 'Kuala Lumpur', lat: 3.1390, lng: 101.6869 },
+  { name: 'Johor Bahru', lat: 1.4927, lng: 103.7414 },
+  { name: 'Penang (Georgetown)', lat: 5.4141, lng: 100.3288 },
+  { name: 'Kota Kinabalu', lat: 5.9788, lng: 116.0753 },
+  { name: 'Kuching', lat: 1.5497, lng: 110.3626 },
+  { name: 'UiTM Shah Alam', lat: 3.0626, lng: 101.4925 },
+  { name: 'UiTM Arau', lat: 6.4299, lng: 100.2702 },
+];
+
+const SOFTWARE_LIST = [
+  'ArcGIS','QGIS','AutoCAD','Civil 3D','MapInfo','Global Mapper','Qinsy','Qimera',
+  'Agisoft Metashape','Pix4D','Trimble Business Center','Python','SQL','PostGIS',
+  'MapLibre','Leaflet','FME','ERDAS Imagine','ENVI','MicroStation'
+];
+
+const VERIFICATION_LABELS = {
+  verified: { label: 'Verified', color: 'emerald', icon: 'check', desc: 'Verified through official website' },
+  linkedin: { label: 'LinkedIn Verified', color: 'blue', icon: 'check', desc: 'Verified through official LinkedIn' },
+  partial: { label: 'Partially Verified', color: 'amber', icon: 'alert', desc: 'Some information verified' },
+  community: { label: 'Community Submitted', color: 'slate', icon: 'users', desc: 'Submitted by community member' },
+  unverified: { label: 'Unverified', color: 'slate', icon: 'alert', desc: 'Not yet verified' },
+};
+
+const P = {
+  map: ['M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m0 0l6-3m0 0l4.553 2.276A1 1 0 0121 7.618v10.764a1 1 0 01-.553.894L15 21m0-13v13m0-13L9 7'],
+  search: ['M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'],
+  filter: ['M3 4h18M6 12h12M10 20h4'],
+  menu: ['M4 6h16M4 12h16M4 18h16'],
+  x: ['M6 18L18 6M6 6l12 12'],
+  chevronRight: ['M9 5l7 7-7 7'],
+  chevronDown: ['M19 9l-7 7-7-7'],
+  chevronLeft: ['M15 19l-7-7 7-7'],
+  building: ['M3 21h18','M5 21V7l8-4v18','M19 21V11l-6-4','M9 9v.01','M9 13v.01','M9 17v.01'],
+  shield: ['M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z'],
+  grad: ['M22 10L12 5 2 10l10 5 10-5z','M6 12v5c0 1 2.5 3 6 3s6-2 6-3v-5','M22 10v6'],
+  beaker: ['M9 3h6v5l4 8a2 2 0 01-2 3H7a2 2 0 01-2-3l4-8V3z','M9 3h6'],
+  package: ['M12 2L2 7v10l10 5 10-5V7L12 2z','M2 7l10 5 10-5','M12 22V12'],
+  code: ['M16 18l6-6-6-6','M8 6l-6 6 6 6'],
+  briefcase: ['M20 7h-4V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2H4a2 2 0 00-2 2v9a2 2 0 002 2h16a2 2 0 002-2V9a2 2 0 00-2-2zM10 5h4v2h-4V5z'],
+  hardhat: ['M2 18h20M4 18a8 8 0 0116 0M10 10V6a2 2 0 012-2 2 2 0 012 2v4'],
+  users: ['M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2','M13 7a4 4 0 11-8 0 4 4 0 018 0z','M23 21v-2a4 4 0 00-3-3.87','M16 3.13a4 4 0 010 7.75'],
+  globe: ['M12 2a10 10 0 100 20 10 10 0 000-20z','M2 12h20','M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z'],
+  mail: ['M4 4h16v16H4z','M4 4l8 7 8-7'],
+  phone: ['M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.13.96.36 1.9.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.91.34 1.85.57 2.81.7A2 2 0 0122 16.92z'],
+  linkedin: ['M16 8a6 6 0 016 6v7h-4v-7a2 2 0 00-4 0v7h-4v-7a6 6 0 016-6z','M2 9h4v12H2z','M4 2a2 2 0 110 4 2 2 0 010-4z'],
+  facebook: ['M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z'],
+  external: ['M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6','M15 3h6v6','M10 14L21 3'],
+  check: ['M20 6L9 17l-5-5'],
+  checkCircle: ['M22 11.08V12a10 10 0 11-5.93-9.14','M22 4L12 14.01l-3-3'],
+  alert: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M12 8v4','M12 16v.01'],
+  clock: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M12 6v6l4 2'],
+  navigation: ['M3 11l19-9-9 19-2-8-8-2z'],
+  crosshair: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M12 8v8','M8 12h8'],
+  layers: ['M12 2L2 7l10 5 10-5-10-5z','M2 17l10 5 10-5','M2 12l10 5 10-5'],
+  grid: ['M3 3h7v7H3z','M14 3h7v7h-7z','M14 14h7v7h-7z','M3 14h7v7H3z'],
+  list: ['M8 6h13','M8 12h13','M8 18h13','M3 6h.01','M3 12h.01','M3 18h.01'],
+  plus: ['M12 5v14','M5 12h14'],
+  arrowRight: ['M5 12h14','M12 5l7 7-7 7'],
+  arrowLeft: ['M19 12H5','M12 19l-7-7 7-7'],
+  info: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M12 16v-4','M12 8h.01'],
+  database: ['M12 2C6.48 2 2 3.79 2 6s4.48 4 10 4 10-1.79 10-4-4.48-4-10-4z','M2 6v6c0 2.21 4.48 4 10 4s10-1.79 10-4V6','M2 12v6c0 2.21 4.48 4 10 4s10-1.79 10-4v-6'],
+  upload: ['M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4','M17 8l-5-5-5 5','M12 3v12'],
+  edit: ['M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7','M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z'],
+  flag: ['M4 15s1-1 4-1 5 2 8 2 4-1 4-1V3s-1 1-4 1-5-2-8-2-4 1-4 1z','M4 22V15'],
+  trending: ['M23 6l-9.5 9.5-5-5L1 18','M17 6h6v6'],
+  barChart: ['M12 20V10','M18 20V4','M6 20v-6'],
+  pie: ['M21.21 15.89A10 10 0 118 2.83','M22 12A10 10 0 0012 2v10z'],
+  pin: ['M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z','M15 10a3 3 0 11-6 0 3 3 0 016 0z'],
+  compass: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M16.5 7.5l-3 6-6 3 3-6 6-3z'],
+  expand: ['M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3'],
+  route: ['M6 19a3 3 0 100-6 3 3 0 000 6zM18 11a3 3 0 100-6 3 3 0 000 6zM6 13V7a3 3 0 013-3h3'],
+  car: ['M5 17a2 2 0 104 0','M15 17a2 2 0 104 0','M3 17V11l3-5h12l3 5v6','M3 11h18'],
+  train: ['M4 15a1 1 0 001 1h14a1 1 0 001-1V8a1 1 0 00-1-1H5a1 1 0 00-1 1v7z','M4 15l-2 4','M20 15l2 4','M8 7V4m8 3V4'],
+  calendar: ['M8 2v4','M16 2v4','M3 10h18','M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z'],
+  dollar: ['M12 1v22','M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6'],
+  tag: ['M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z','M7 7h.01'],
+  bookmark: ['M19 21l-7-5-7 5V5a2 2 0 012-2h10a2 2 0 012 2z'],
+  send: ['M22 2L11 13','M22 2l-7 20-4-9-9-4 20-7z'],
+  link: ['M10 13a5 5 0 007.54.54l3-3a5 5 0 00-7.07-7.07l-1.72 1.71','M14 11a5 5 0 00-7.54-.54l-3 3a5 5 0 007.07 7.07l1.71-1.71'],
+  image: ['M19 3H5a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2V5a2 2 0 00-2-2z','M8.5 11a1.5 1.5 0 100-3 1.5 1.5 0 000 3z','M21 15l-5-5L5 21'],
+  clipboard: ['M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2','M9 2h6a1 1 0 011 1v2a1 1 0 01-1 1H9a1 1 0 01-1-1V3a1 1 0 011-1z'],
+  help: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3','M12 17h.01'],
+  star: ['M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z'],
+  eye: ['M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z','M12 15a3 3 0 100-6 3 3 0 000 6z'],
+  refresh: ['M23 4v6h-6','M1 20v-6h6','M3.51 9a9 9 0 0114.85-3.36L23 10','M1 14l4.64 4.36A9 9 0 0020.49 15'],
+  download: ['M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4','M7 10l5 5 5-5','M12 15V3'],
+  zoomIn: ['M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35','M11 8v6','M8 11h6'],
+  zoomOut: ['M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.35-4.35','M8 11h6'],
+  locate: ['M12 22a10 10 0 100-20 10 10 0 000 20z','M12 6v4','M12 14v4','M6 12h4','M14 12h4'],
+  home: ['M3 12l9-9 9 9','M5 10v10a1 1 0 001 1h12a1 1 0 001-1V10'],
+  award: ['M12 15a6 6 0 100-12 6 6 0 000 12z','M8.21 13.89L7 23l5-3 5 3-1.21-9.12'],
+  zap: ['M13 2L3 14h9l-1 8 10-12h-9l1-8z'],
+  fileText: ['M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z','M14 2v6h6','M16 13H8','M16 17H8','M10 9H8'],
+  sparkles: ['M12 3l1.5 4.5L18 9l-4.5 1.5L12 15l-1.5-4.5L6 9l4.5-1.5L12 3z','M19 14l.75 2.25L22 17l-2.25.75L19 20l-.75-2.25L16 17l2.25-.75L19 14z'],
+  mapPin: ['M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z','M15 10a3 3 0 11-6 0 3 3 0 016 0z'],
+  settings: ['M12 15a3 3 0 100-6 3 3 0 000 6z','M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 01-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z'],
+  database2: ['M21 8V5a2 2 0 00-2-2H5a2 2 0 00-2 2v3','M3 8c0 1.66 4 3 9 3s9-1.34 9-3','M3 13c0 1.66 4 3 9 3s9-1.34 9-3','M3 18c0 1.66 4 3 9 3s9-1.34 9-3'],
+};
+
+const Icon = ({ name, size = 18, className = '', strokeWidth = 2 }) => {
+  const paths = P[name];
+  if (!paths) return null;
+  return React.createElement('svg', {
+    xmlns: 'http://www.w3.org/2000/svg', width: size, height: size, viewBox: '0 0 24 24',
+    fill: 'none', stroke: 'currentColor', strokeWidth, strokeLinecap: 'round', strokeLinejoin: 'round', className
+  }, ...paths.map((d, i) => React.createElement('path', { key: i, d })));
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MOCK DATA
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const COMPANIES = [
+  { id:'c001', name:'GeoSpatial Solutions Sdn Bhd', desc:'Leading GIS consulting and spatial analytics firm serving federal and state government clients across Malaysia.', orgType:'Private Company', primarySector:'GIS and Geospatial', secondarySectors:['Geospatial Software','Urban Planning'], address:'Level 12, Menara Axis, Persiaran Tropicana', city:'Petaling Jaya', district:'Petaling', state:'Selangor', postcode:'47400', lat:3.1073, lng:101.6067, website:'https://geospatial.my', email:'info@geospatial.my', phone:'+603-7803 1200', linkedin:'https://linkedin.com/company/geospatial-solutions-my', facebook:'https://facebook.com/geospatialmy', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-15', lastChecked:'2026-07-01', lastUpdated:'2026-06-28', notes:'Profile verified via official domain. Contact details current.', services:['GIS Analysis','Web Mapping','Spatial Database Design','GIS Training','Cartography','Data Management'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'Python',e:'Job advertisement',s:'Confirmed'},{n:'PostGIS',e:'LinkedIn',s:'Confirmed'},{n:'MapLibre',e:'Official website',s:'Confirmed'}], activeJobs:3, activeInternships:1 },
+  { id:'c002', name:'Tanjung Survey Consultants', desc:'Licensed land surveying firm with 25 years of experience in cadastral, engineering and topographic surveys.', orgType:'Private Company', primarySector:'Land Surveying', secondarySectors:['Engineering Survey','GNSS and Survey Equipment'], address:'23 Jalan Meldrum, 80000', city:'Johor Bahru', district:'Johor Bahru', state:'Johor', postcode:'80000', lat:1.4927, lng:103.7414, website:'https://tanjungsurvey.my', email:'admin@tanjungsurvey.my', phone:'+607-224 8899', linkedin:'https://linkedin.com/company/tanjung-survey-consultants', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-10', lastChecked:'2026-06-30', lastUpdated:'2026-06-15', notes:'Licensed under LJT Johor. All surveyors registered with LSBoard.', services:['Cadastral Survey','Topographic Survey','Engineering Survey','Boundary Demarcation','Strata Title Survey'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Civil 3D',e:'Job advertisement',s:'Confirmed'},{n:'Trimble Business Center',e:'LinkedIn',s:'Confirmed'}], activeJobs:2, activeInternships:1 },
+  { id:'c003', name:'DroneMap Asia Sdn Bhd', desc:'Drone and UAV service provider specialising in aerial mapping, photogrammetry and 3D modelling.', orgType:'Private Company', primarySector:'Drone and UAV', secondarySectors:['Photogrammetry','Mapping and Cartography'], address:'Plot 6, Bayan Lepas Tech Park, 11900', city:'Bayan Lepas', district:'Timur Laut', state:'Penang', postcode:'11900', lat:5.3113, lng:100.2924, website:'https://dronemap.asia', email:'fly@dronemap.asia', phone:'+604-645 3300', linkedin:'https://linkedin.com/company/dronemap-asia', facebook:'https://facebook.com/dronemapasia', verification:'verified', sourceType:'Official website', dateAdded:'2025-03-05', lastChecked:'2026-07-02', lastUpdated:'2026-06-20', notes:'CAAM-approved UAS operator. Holds AOC Category 2.', services:['UAV Aerial Survey','Photogrammetry','3D Modelling','Orthophoto Production','Volume Calculation','Progress Monitoring'], software:[{n:'Agisoft Metashape',e:'Official website',s:'Confirmed'},{n:'Pix4D',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Job advertisement',s:'Confirmed'},{n:'AutoCAD',e:'LinkedIn',s:'Community reported'}], activeJobs:2, activeInternships:2 },
+  { id:'c004', name:'HydroChart Malaysia Sdn Bhd', desc:'Hydrographic survey company providing bathymetric surveys, marine mapping and port hydrography services.', orgType:'Private Company', primarySector:'Hydrography', secondarySectors:['Mapping and Cartography','GIS and Geospatial'], address:'Marina Jetty Complex, 20300', city:'Kuala Terengganu', district:'Kuala Terengganu', state:'Terengganu', postcode:'20300', lat:5.3302, lng:103.1408, website:'https://hydrochart.my', email:'ops@hydrochart.my', phone:'+609-627 4400', linkedin:'https://linkedin.com/company/hydrochart-malaysia', facebook:'', verification:'partial', sourceType:'Official website', dateAdded:'2025-02-20', lastChecked:'2026-06-28', lastUpdated:'2026-05-30', notes:'Website verified. Some contact details pending confirmation.', services:['Bathymetric Survey','Hydrographic Survey','Tidal Measurement','Seabed Mapping','Marine Charting','Pre-dredge Survey'], software:[{n:'Qinsy',e:'Official website',s:'Confirmed'},{n:'Qimera',e:'Official website',s:'Confirmed'},{n:'ArcGIS',e:'LinkedIn',s:'Confirmed'},{n:'Global Mapper',e:'Community reported',s:'Unverified'}], activeJobs:1, activeInternships:0 },
+  { id:'c005', name:'ArcTools Vendor Sdn Bhd', desc:'Authorised distributor of Trimble, Leica and Topcon survey equipment and GNSS solutions in Malaysia.', orgType:'Equipment Vendor', primarySector:'GNSS and Survey Equipment', secondarySectors:['Technical Sales and Support','Drone and UAV'], address:'Level 8, Menara KLH, Persiaran Tropicana, 47400', city:'Petaling Jaya', district:'Petaling', state:'Selangor', postcode:'47400', lat:3.1140, lng:101.6140, website:'https://arctools.my', email:'sales@arctools.my', phone:'+603-7803 9900', linkedin:'https://linkedin.com/company/arctools-vendor', facebook:'https://facebook.com/arctoolsmy', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-20', lastChecked:'2026-07-01', lastUpdated:'2026-06-25', notes:'Authorised Trimble distributor since 2012.', services:['GNSS Equipment Sales','Total Station Sales','Survey Equipment Rental','Technical Support','Calibration Services','Training'], software:[{n:'Trimble Business Center',e:'Official website',s:'Confirmed'},{n:'AutoCAD',e:'Job advertisement',s:'Confirmed'}], activeJobs:2, activeInternships:1 },
+  { id:'c006', name:'Northborneo Mapping Solutions', desc:'Remote sensing and earth observation company serving Sabah and Sarawak with satellite imagery analysis.', orgType:'Private Company', primarySector:'Remote Sensing', secondarySectors:['GIS and Geospatial','Environmental and Forestry'], address:'Lot 15, KK Tech Park, 88450', city:'Kota Kinabalu', district:'Penampang', state:'Sabah', postcode:'88450', lat:5.9788, lng:116.0753, website:'https://northborneo.rs', email:'info@northborneo.rs', phone:'+6088-235 7800', linkedin:'https://linkedin.com/company/northborneo-mapping', facebook:'', verification:'partial', sourceType:'Official LinkedIn', dateAdded:'2025-03-15', lastChecked:'2026-06-25', lastUpdated:'2026-06-10', notes:'Verified via LinkedIn. Website under maintenance at last check.', services:['Satellite Imagery Analysis','Land Cover Classification','Change Detection','Forest Monitoring','Flood Mapping','Agriculture Mapping'], software:[{n:'ERDAS Imagine',e:'LinkedIn',s:'Confirmed'},{n:'ENVI',e:'LinkedIn',s:'Confirmed'},{n:'ArcGIS',e:'Job advertisement',s:'Confirmed'},{n:'Python',e:'Job advertisement',s:'Confirmed'}], activeJobs:1, activeInternships:1 },
+  { id:'c007', name:'Sarawak Geomatics Services', desc:'Land and engineering survey firm serving Sarawak with offices in Kuching, Sibu and Miri.', orgType:'Private Company', primarySector:'Land Surveying', secondarySectors:['Engineering Survey','Asset Mapping and Data Collection'], address:'11 Jalan Song, 93350', city:'Kuching', district:'Kuching', state:'Sarawak', postcode:'93350', lat:1.5497, lng:110.3626, website:'https://sgs.my', email:'enquiry@sgs.my', phone:'+6082-440 900', linkedin:'https://linkedin.com/company/sarawak-geomatics-services', facebook:'https://facebook.com/sgssarawak', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-28', lastChecked:'2026-07-01', lastUpdated:'2026-06-22', notes:'Licensed surveyor firm. Multiple branches across Sarawak.', services:['Cadastral Survey','Engineering Survey','Topographic Survey','GPS Control Survey','Setting Out','As-Built Survey'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Civil 3D',e:'Official website',s:'Confirmed'},{n:'Trimble Business Center',e:'Official website',s:'Confirmed'}], activeJobs:2, activeInternships:0 },
+  { id:'c008', name:'Kinta Valley Surveyors Sdn Bhd', desc:'Engineering survey specialists serving the Perak construction and infrastructure sector since 1998.', orgType:'Contractor', primarySector:'Engineering Survey', secondarySectors:['Land Surveying','Construction and Infrastructure'], address:'45 Jalan Sultan Idris Shah, 30000', city:'Ipoh', district:'Kinta', state:'Perak', postcode:'30000', lat:4.5975, lng:101.0901, website:'https://kvsurvey.my', email:'admin@kvsurvey.my', phone:'+605-255 3344', linkedin:'https://linkedin.com/company/kinta-valley-surveyors', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-25', lastChecked:'2026-06-30', lastUpdated:'2026-06-18', notes:'CIDB G7 contractor. ISO 9001 certified.', services:['Engineering Survey','Setting Out','As-Built Survey','Deformation Monitoring','Volume Calculation','Machine Control'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Civil 3D',e:'Official website',s:'Confirmed'},{n:'Trimble Business Center',e:'Job advertisement',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+  { id:'c009', name:'MapTech Malaysia Sdn Bhd', desc:'Geospatial software company developing custom web mapping applications and location intelligence platforms.', orgType:'Software Company', primarySector:'Geospatial Software', secondarySectors:['GIS and Geospatial'], address:'Cyber 12, Persiaran Cyber, 63000', city:'Cyberjaya', district:'Sepang', state:'Selangor', postcode:'63000', lat:2.9215, lng:101.6559, website:'https://maptech.my', email:'hello@maptech.my', phone:'+603-8320 7700', linkedin:'https://linkedin.com/company/maptech-malaysia', facebook:'https://facebook.com/maptechmy', verification:'verified', sourceType:'Official website', dateAdded:'2025-03-01', lastChecked:'2026-07-02', lastUpdated:'2026-06-30', notes:'MSC Malaysia status company. MDEC registered.', services:['Web GIS Development','Location Intelligence','Spatial Database','Custom Mapping','Mobile GIS','Cloud GIS'], software:[{n:'MapLibre',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'Python',e:'Job advertisement',s:'Confirmed'},{n:'SQL',e:'Job advertisement',s:'Confirmed'},{n:'PostGIS',e:'Job advertisement',s:'Confirmed'},{n:'Leaflet',e:'LinkedIn',s:'Confirmed'}], activeJobs:3, activeInternships:2 },
+  { id:'c010', name:'UtiliScan Sdn Bhd', desc:'Underground utility detection and mapping specialist using GPR, EML and vacuum excavation technology.', orgType:'Private Company', primarySector:'Underground Utility Detection', secondarySectors:['Utility Mapping','Asset Mapping and Data Collection'], address:'Level 5, Block B, Phileo Damansara, 46350', city:'Petaling Jaya', district:'Petaling', state:'Selangor', postcode:'46350', lat:3.1320, lng:101.6240, website:'https://utiliscan.my', email:'enquiry@utiliscan.my', phone:'+603-7620 8800', linkedin:'https://linkedin.com/company/utiliscan-my', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-05', lastChecked:'2026-07-01', lastUpdated:'2026-06-28', notes:'CIAA certified utility locator. Works with TNB, SYABAS, Telekom.', services:['Underground Utility Detection','GPR Survey','Utility Mapping','Utility Survey','Vacuum Excavation','Utility Conflict Analysis'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'LinkedIn',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+  { id:'c011', name:'Perlis Precision Survey', desc:'Cadastral and land survey firm serving Perlis and northern Kedah region.', orgType:'Private Company', primarySector:'Land Surveying', secondarySectors:['GIS and Geospatial'], address:'34 Jalan Kangar-Alor Setar, 01000', city:'Kangar', district:'Kangar', state:'Perlis', postcode:'01000', lat:6.4414, lng:100.1986, website:'https://perlisurvey.my', email:'info@perlisurvey.my', phone:'+604-970 1234', linkedin:'', facebook:'https://facebook.com/perlisurvey', verification:'community', sourceType:'Community submitted', dateAdded:'2025-04-10', lastChecked:'2026-06-20', lastUpdated:'2026-05-15', notes:'Community submitted. Website verified but contact details unverified.', services:['Cadastral Survey','Boundary Survey','Topographic Survey','Land Subdivision'], software:[{n:'AutoCAD',e:'Community reported',s:'Unverified'},{n:'QGIS',e:'Community reported',s:'Unverified'}], activeJobs:0, activeInternships:1 },
+  { id:'c012', name:'East Coast GIS Solutions', desc:'GIS consultancy serving Pahang, Terengganu and Kelantan with focus on natural resource management.', orgType:'Consultant', primarySector:'GIS and Geospatial', secondarySectors:['Environmental and Forestry','Remote Sensing'], address:'88 Jalan Beserah, 25000', city:'Kuantan', district:'Kuantan', state:'Pahang', postcode:'25000', lat:3.8077, lng:103.3260, website:'https://ecgis.my', email:'contact@ecgis.my', phone:'+609-516 6800', linkedin:'https://linkedin.com/company/east-coast-gis', facebook:'', verification:'partial', sourceType:'Official website', dateAdded:'2025-03-20', lastChecked:'2026-06-28', lastUpdated:'2026-06-05', notes:'Website verified. Phone number not confirmed.', services:['GIS Analysis','Environmental Mapping','Forestry GIS','Flood Risk Mapping','Land Use Planning','Spatial Database'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'ERDAS Imagine',e:'LinkedIn',s:'Confirmed'}], activeJobs:1, activeInternships:1 },
+  { id:'c013', name:'Kelantan Geoservices Sdn Bhd', desc:'Surveying and geospatial services company serving Kelantan and southern Thailand border region.', orgType:'Private Company', primarySector:'Engineering Survey', secondarySectors:['Land Surveying','Asset Mapping and Data Collection'], address:'12 Jalan Hamzah, 15000', city:'Kota Bharu', district:'Kota Bharu', state:'Kelantan', postcode:'15000', lat:6.1254, lng:102.2385, website:'https://kgeoservices.my', email:'admin@kgeoservices.my', phone:'+609-740 2200', linkedin:'', facebook:'https://facebook.com/kgeoservices', verification:'community', sourceType:'Community submitted', dateAdded:'2025-04-15', lastChecked:'2026-06-22', lastUpdated:'2026-05-20', notes:'Community submitted. Needs verification of official details.', services:['Engineering Survey','Topographic Survey','Cadastral Survey','Setting Out','Volume Calculation'], software:[{n:'AutoCAD',e:'Community reported',s:'Unverified'},{n:'Civil 3D',e:'Community reported',s:'Unverified'}], activeJobs:0, activeInternships:0 },
+  { id:'c014', name:'Negeri Sembilan Mapping Services', desc:'Mapping and cartography company providing custom map production and spatial data services.', orgType:'Private Company', primarySector:'Mapping and Cartography', secondarySectors:['GIS and Geospatial','Asset Mapping and Data Collection'], address:'23 Jalan Dato Lee Fong Yee, 70000', city:'Seremban', district:'Seremban', state:'Negeri Sembilan', postcode:'70000', lat:2.7294, lng:101.9382, website:'https://nsmapping.my', email:'info@nsmapping.my', phone:'+606-768 4500', linkedin:'https://linkedin.com/company/ns-mapping-services', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-15', lastChecked:'2026-06-30', lastUpdated:'2026-06-12', notes:'Registered with LSBoard Negeri Sembilan.', services:['Cartographic Design','Map Production','Spatial Data Collection','GIS Services','Thematic Mapping','Atlas Production'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'MapInfo',e:'Official website',s:'Confirmed'},{n:'Adobe Illustrator',e:'LinkedIn',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+  { id:'c015', name:'Melaka Heritage Survey Sdn Bhd', desc:'Specialised surveying firm focused on heritage building documentation and cultural mapping.', orgType:'Private Company', primarySector:'Land Surveying', secondarySectors:['Photogrammetry','Mapping and Cartography'], address:'45 Jalan Laksamana, 75200', city:'Melaka', district:'Melaka Tengah', state:'Melaka', postcode:'75200', lat:2.2008, lng:102.2486, website:'https://heritagesurvey.my', email:'info@heritagesurvey.my', phone:'+606-281 3300', linkedin:'https://linkedin.com/company/melaka-heritage-survey', facebook:'https://facebook.com/heritagesurveymelaka', verification:'verified', sourceType:'Official website', dateAdded:'2025-03-10', lastChecked:'2026-07-01', lastUpdated:'2026-06-25', notes:'UNESCO World Heritage zone surveying experience.', services:['Heritage Building Survey','3D Laser Scanning','Cadastral Survey','Topographic Survey','Cultural Mapping','As-Built Documentation'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Agisoft Metashape',e:'Official website',s:'Confirmed'},{n:'MicroStation',e:'LinkedIn',s:'Confirmed'}], activeJobs:1, activeInternships:1 },
+  { id:'c016', name:'Kedah Spatial Dynamics', desc:'GIS and spatial data analytics company serving northern region local authorities and plantation sector.', orgType:'Consultant', primarySector:'GIS and Geospatial', secondarySectors:['Asset Mapping and Data Collection','Environmental and Forestry'], address:'78 Jalan Sultan Badlishah, 05000', city:'Alor Setar', district:'Kota Setar', state:'Kedah', postcode:'05000', lat:6.1244, lng:100.3678, website:'https://ksd.my', email:'enquiry@ksd.my', phone:'+604-735 7800', linkedin:'https://linkedin.com/company/kedah-spatial-dynamics', facebook:'', verification:'partial', sourceType:'Official website', dateAdded:'2025-03-25', lastChecked:'2026-06-26', lastUpdated:'2026-06-08', notes:'Website verified. Email pending confirmation.', services:['GIS Analysis','Asset Mapping','Plantation Mapping','Flood Analysis','Spatial Planning','Data Collection'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'Python',e:'Job advertisement',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+  { id:'c017', name:'AerialVision Malaysia', desc:'Aerial photogrammetry and drone mapping company with fleet of fixed-wing and multirotor UAVs.', orgType:'Private Company', primarySector:'Photogrammetry', secondarySectors:['Drone and UAV','Mapping and Cartography'], address:'Hangar 7, Subang Airport, 47200', city:'Subang', district:'Petaling', state:'Selangor', postcode:'47200', lat:3.1210, lng:101.5497, website:'https://aerialvision.my', email:'fly@aerialvision.my', phone:'+603-7845 7700', linkedin:'https://linkedin.com/company/aerialvision-my', facebook:'https://facebook.com/aerialvisionmy', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-30', lastChecked:'2026-07-02', lastUpdated:'2026-06-28', notes:'CAAM UAS Operator Certificate holder. Night flight rated.', services:['Aerial Photogrammetry','UAV Survey','3D Modelling','Orthophoto Production','LiDAR Survey','Inspection Survey'], software:[{n:'Agisoft Metashape',e:'Official website',s:'Confirmed'},{n:'Pix4D',e:'Official website',s:'Confirmed'},{n:'Global Mapper',e:'Official website',s:'Confirmed'},{n:'AutoCAD',e:'LinkedIn',s:'Confirmed'}], activeJobs:2, activeInternships:1 },
+  { id:'c018', name:'GeoEnv Consultants Sdn Bhd', desc:'Environmental and forestry geospatial consultancy serving Sarawak timber and conservation sectors.', orgType:'Consultant', primarySector:'Environmental and Forestry', secondarySectors:['Remote Sensing','GIS and Geospatial'], address:'Lot 22, Jalan Tun Jugah, 93350', city:'Kuching', district:'Kuching', state:'Sarawak', postcode:'93350', lat:1.5570, lng:110.3720, website:'https://geoenv.my', email:'consult@geoenv.my', phone:'+6082-450 3300', linkedin:'https://linkedin.com/company/geoenv-consultants', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-18', lastChecked:'2026-07-01', lastUpdated:'2026-06-20', notes:'Registered environmental consultant with NREB Sarawak.', services:['Forest Mapping','Land Cover Analysis','Environmental Impact Assessment GIS','Conservation Planning','Carbon Stock Mapping','Watershed Analysis'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'ERDAS Imagine',e:'Official website',s:'Confirmed'},{n:'ENVI',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'LinkedIn',s:'Confirmed'}], activeJobs:1, activeInternships:1 },
+  { id:'c019', name:'JUPEM Federal Office', desc:'Department of Survey and Mapping Malaysia — federal agency responsible for cadastral and topographic surveys.', orgType:'Government Agency', primarySector:'Government Agency', secondarySectors:['Mapping and Cartography','Land Surveying'], address:'Jalan Semarak, 50578', city:'Kuala Lumpur', district:'Kuala Lumpur', state:'Kuala Lumpur', postcode:'50578', lat:3.1700, lng:101.7100, website:'https://www.jupem.gov.my', email:'info@jupem.gov.my', phone:'+603-2697 0200', linkedin:'', facebook:'https://facebook.com/jupemmalaysia', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-10', lastChecked:'2026-07-01', lastUpdated:'2026-06-30', notes:'Federal government department under Ministry of Natural Resources.', services:['Cadastral Survey','Topographic Mapping','National Spatial Data Infrastructure','Geodetic Control','Satellite Imagery','Digital Cadastre Database'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Trimble Business Center',e:'Official website',s:'Confirmed'},{n:'ERDAS Imagine',e:'Official website',s:'Confirmed'}], activeJobs:0, activeInternships:0 },
+  { id:'c020', name:'UiTM Faculty of Geoinformation & Surveying', desc:'Premier geomatics education institution offering degree programmes in surveying, GIS, remote sensing and hydrography.', orgType:'University', primarySector:'Education and Research', secondarySectors:['GIS and Geospatial','Remote Sensing','Hydrography'], address:'Universiti Teknologi MARA, 40450', city:'Shah Alam', district:'Petaling', state:'Selangor', postcode:'40450', lat:3.0626, lng:101.4925, website:'https://fgs.uitm.edu.my', email:'fgs@uitm.edu.my', phone:'+603-5544 2000', linkedin:'https://linkedin.com/school/uitm-fgs', facebook:'https://facebook.com/uitmfgs', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-12', lastChecked:'2026-07-01', lastUpdated:'2026-06-28', notes:'Oldest geomatics faculty in Malaysia. Established 1972.', services:['Geomatics Education','Research','Industry Collaboration','Professional Training','Consultancy','Internship Programme'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'ERDAS Imagine',e:'Official website',s:'Confirmed'},{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Python',e:'Official website',s:'Confirmed'},{n:'PostGIS',e:'Official website',s:'Confirmed'}], activeJobs:0, activeInternships:0 },
+  { id:'c021', name:'UTM Remote Sensing Centre', desc:'Research centre specialising in remote sensing, GIS and geospatial intelligence at Universiti Teknologi Malaysia.', orgType:'Research Institution', primarySector:'Education and Research', secondarySectors:['Remote Sensing','GIS and Geospatial'], address:'Universiti Teknologi Malaysia, 81310', city:'Skudai', district:'Johor Bahru', state:'Johor', postcode:'81310', lat:1.5329, lng:103.6572, website:'https://rsc.utm.my', email:'rsc@utm.my', phone:'+607-555 7000', linkedin:'https://linkedin.com/company/utm-rsc', facebook:'https://facebook.com/utmrsc', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-18', lastChecked:'2026-06-30', lastUpdated:'2026-06-25', notes:'Accredited research centre. Partner of ESA and JAXA.', services:['Remote Sensing Research','GIS Research','Satellite Data Analysis','Geospatial AI','Climate Monitoring','Industry Consultancy'], software:[{n:'ENVI',e:'Official website',s:'Confirmed'},{n:'ERDAS Imagine',e:'Official website',s:'Confirmed'},{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'Python',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'}], activeJobs:0, activeInternships:0 },
+  { id:'c022', name:'GeoSkills Training Institute', desc:'Professional geospatial training provider offering certified courses in GIS, drone operation and surveying.', orgType:'Training Provider', primarySector:'Education and Research', secondarySectors:['GIS and Geospatial','Drone and UAV','Technical Sales and Support'], address:'Level 9, Menara PKM, Jalan Raja Laut, 50350', city:'Kuala Lumpur', district:'Kuala Lumpur', state:'Kuala Lumpur', postcode:'50350', lat:3.1600, lng:101.6950, website:'https://geoskills.my', email:'training@geoskills.my', phone:'+603-2691 4400', linkedin:'https://linkedin.com/company/geoskills-malaysia', facebook:'https://facebook.com/geoskillsmy', verification:'verified', sourceType:'Official website', dateAdded:'2025-03-08', lastChecked:'2026-07-01', lastUpdated:'2026-06-27', notes:'HRD Corp certified training provider. Esri Malaysia authorised partner.', services:['GIS Training','Drone Pilot Training','Survey Software Training','ArcGIS Certification','QGIS Courses','Custom Corporate Training'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'Pix4D',e:'Official website',s:'Confirmed'},{n:'Agisoft Metashape',e:'Official website',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+  { id:'c023', name:'Cadastral Solutions Sdn Bhd', desc:'Modern land surveying firm using robotic total stations and RTK GNSS for high-precision cadastral work.', orgType:'Private Company', primarySector:'Land Surveying', secondarySectors:['GNSS and Survey Equipment','GIS and Geospatial'], address:'17 Jalan Tengku Ampuan Zabedah, 40100', city:'Shah Alam', district:'Petaling', state:'Selangor', postcode:'40100', lat:3.0750, lng:101.5220, website:'https://cadsol.my', email:'enquiry@cadsol.my', phone:'+603-5518 8800', linkedin:'https://linkedin.com/company/cadastral-solutions-my', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-08', lastChecked:'2026-07-01', lastUpdated:'2026-06-22', notes:'LSBoard registered firm. Specialises in fast-track strata titles.', services:['Cadastral Survey','Strata Title Survey','Boundary Re-establishment','Subdivision Survey','Land Conversion Survey','Survey Audit'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Civil 3D',e:'Official website',s:'Confirmed'},{n:'Trimble Business Center',e:'Official website',s:'Confirmed'},{n:'ArcGIS',e:'Job advertisement',s:'Confirmed'}], activeJobs:2, activeInternships:1 },
+  { id:'c024', name:'MarineSurvey Malaysia', desc:'Marine and hydrographic survey company operating across Sabah waters with multi-beam echo sounders.', orgType:'Private Company', primarySector:'Hydrography', secondarySectors:['Mapping and Cartography','Asset Mapping and Data Collection'], address:'Jetty 3, KK Port, 88000', city:'Kota Kinabalu', district:'Kota Kinabalu', state:'Sabah', postcode:'88000', lat:5.9820, lng:116.0680, website:'https://marinesurvey.my', email:'ops@marinesurvey.my', phone:'+6088-423 7700', linkedin:'https://linkedin.com/company/marinesurvey-malaysia', facebook:'', verification:'partial', sourceType:'Official website', dateAdded:'2025-03-18', lastChecked:'2026-06-25', lastUpdated:'2026-06-10', notes:'Website verified. Phone number may have changed.', services:['Multibeam Survey','Singlebeam Survey','Tidal Observation','Seabed Classification','Route Survey','Port Survey'], software:[{n:'Qinsy',e:'Official website',s:'Confirmed'},{n:'Qimera',e:'Official website',s:'Confirmed'},{n:'ArcGIS',e:'LinkedIn',s:'Confirmed'},{n:'FME',e:'Community reported',s:'Unverified'}], activeJobs:1, activeInternships:0 },
+  { id:'c025', name:'BuildTech Survey Sdn Bhd', desc:'Construction and infrastructure survey specialist serving mega-projects across Klang Valley and Greater KL.', orgType:'Contractor', primarySector:'Construction and Infrastructure', secondarySectors:['Engineering Survey','Land Surveying'], address:'Level 15, The Horizon, Bangsar South, 59200', city:'Kuala Lumpur', district:'Kuala Lumpur', state:'Kuala Lumpur', postcode:'59200', lat:3.1150, lng:101.6680, website:'https://buildtechsurvey.my', email:'projects@buildtechsurvey.my', phone:'+603-2240 9900', linkedin:'https://linkedin.com/company/buildtech-survey', facebook:'https://facebook.com/buildtechsurvey', verification:'verified', sourceType:'Official website', dateAdded:'2025-01-22', lastChecked:'2026-07-02', lastUpdated:'2026-06-30', notes:'CIDB G7. Experience on MRT, LRT and PLUS highway projects.', services:['Construction Survey','Setting Out','Deformation Monitoring','Machine Guidance','Volume Survey','Bridge Monitoring'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Civil 3D',e:'Official website',s:'Confirmed'},{n:'Trimble Business Center',e:'Official website',s:'Confirmed'}], activeJobs:2, activeInternships:1 },
+  { id:'c026', name:'ForestGIS Malaysia', desc:'Geospatial technology company specialising in forest management, REDD+ monitoring and biodiversity mapping.', orgType:'Consultant', primarySector:'Environmental and Forestry', secondarySectors:['Remote Sensing','GIS and Geospatial'], address:'Jalan Gelugor, 27000', city:'Kuantan', district:'Kuantan', state:'Pahang', postcode:'27000', lat:3.8200, lng:103.3100, website:'https://forestgis.my', email:'info@forestgis.my', phone:'+609-531 4400', linkedin:'https://linkedin.com/company/forestgis-my', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-25', lastChecked:'2026-06-30', lastUpdated:'2026-06-18', notes:'Works with FDPM and state forestry departments.', services:['Forest Mapping','REDD+ MRV','Biomass Estimation','Deforestation Monitoring','Biodiversity GIS','Carbon Mapping'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'ENVI',e:'Official website',s:'Confirmed'},{n:'Google Earth Engine',e:'LinkedIn',s:'Confirmed'},{n:'Python',e:'Job advertisement',s:'Confirmed'}], activeJobs:1, activeInternships:1 },
+  { id:'c027', name:'UrbanPlan Geomatics Sdn Bhd', desc:'Urban planning and geospatial consultancy serving Putrajaya, KL and Selangor local authorities.', orgType:'Consultant', primarySector:'Urban Planning', secondarySectors:['GIS and Geospatial','Mapping and Cartography'], address:'Level 7, Parcel 4, 62502', city:'Putrajaya', district:'Putrajaya', state:'Putrajaya', postcode:'62502', lat:2.9264, lng:101.6964, website:'https://urbanplan.my', email:'plan@urbanplan.my', phone:'+603-8885 3300', linkedin:'https://linkedin.com/company/urbanplan-geomatics', facebook:'', verification:'verified', sourceType:'Official website', dateAdded:'2025-03-12', lastChecked:'2026-07-01', lastUpdated:'2026-06-26', notes:'Registered town planning consultant with PLANMalaysia.', services:['Urban Planning GIS','Land Use Analysis','Development Suitability','Catchment Analysis','Demographic Mapping','Smart City GIS'], software:[{n:'ArcGIS',e:'Official website',s:'Confirmed'},{n:'QGIS',e:'Official website',s:'Confirmed'},{n:'FME',e:'Official website',s:'Confirmed'},{n:'Python',e:'Job advertisement',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+  { id:'c028', name:'SiteSmart Surveyors', desc:'Site engineering and survey company providing layout, monitoring and as-built services for Johor construction projects.', orgType:'Contractor', primarySector:'Engineering Survey', secondarySectors:['Construction and Infrastructure','Land Surveying'], address:'22 Jalan Sutera, 81200', city:'Johor Bahru', district:'Johor Bahru', state:'Johor', postcode:'81200', lat:1.4970, lng:103.7250, website:'https://sitesmart.my', email:'enquiry@sitesmart.my', phone:'+607-555 1100', linkedin:'https://linkedin.com/company/sitesmart-surveyors', facebook:'https://facebook.com/sitesmartmy', verification:'verified', sourceType:'Official website', dateAdded:'2025-02-12', lastChecked:'2026-06-30', lastUpdated:'2026-06-20', notes:'CIDB G5. Specialises in residential and commercial projects.', services:['Setting Out','As-Built Survey','Leveling','Monitoring Survey','Earthwork Calculation','Site Supervision'], software:[{n:'AutoCAD',e:'Official website',s:'Confirmed'},{n:'Civil 3D',e:'Official website',s:'Confirmed'},{n:'Trimble Business Center',e:'Official website',s:'Confirmed'}], activeJobs:1, activeInternships:0 },
+];
+
+const JOBS = [
+  { id:'j001', companyId:'c001', title:'GIS Analyst', type:'Full-time', level:'Junior', sector:'GIS and Geospatial', city:'Petaling Jaya', state:'Selangor', workMode:'Onsite', salMin:3500, salMax:5000, salText:'RM3,500 - RM5,000', software:['ArcGIS','QGIS','Python'], posted:'2026-06-15', closing:'2026-07-30', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j001', status:'active' },
+  { id:'j002', companyId:'c001', title:'Senior GIS Consultant', type:'Full-time', level:'Experienced', sector:'GIS and Geospatial', city:'Petaling Jaya', state:'Selangor', workMode:'Hybrid', salMin:6000, salMax:8500, salText:'RM6,000 - RM8,500', software:['ArcGIS','Python','PostGIS'], posted:'2026-06-10', closing:'2026-07-25', source:'Company website', url:'https://geospatial.my/careers', status:'active' },
+  { id:'j003', companyId:'c001', title:'GIS Intern', type:'Internship', level:'Entry level', sector:'GIS and Geospatial', city:'Petaling Jaya', state:'Selangor', workMode:'Onsite', salMin:1000, salMax:1500, salText:'RM1,000 - RM1,500/month', software:['ArcGIS','QGIS'], posted:'2026-06-20', closing:'2026-07-31', source:'Company website', url:'https://geospatial.my/careers', status:'active' },
+  { id:'j004', companyId:'c002', title:'Licensed Land Surveyor', type:'Full-time', level:'Experienced', sector:'Land Surveying', city:'Johor Bahru', state:'Johor', workMode:'Onsite', salMin:5000, salMax:7000, salText:'RM5,000 - RM7,000', software:['AutoCAD','Civil 3D'], posted:'2026-06-12', closing:'2026-07-20', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j004', status:'active' },
+  { id:'j005', companyId:'c002', title:'Survey Assistant', type:'Full-time', level:'Entry level', sector:'Land Surveying', city:'Johor Bahru', state:'Johor', workMode:'Field-based', salMin:2000, salMax:2800, salText:'RM2,000 - RM2,800', software:['AutoCAD'], posted:'2026-06-18', closing:'2026-07-18', source:'JobStreet', url:'https://jobstreet.com.my/j005', status:'active' },
+  { id:'j006', companyId:'c002', title:'Surveying Intern', type:'Internship', level:'Entry level', sector:'Land Surveying', city:'Johor Bahru', state:'Johor', workMode:'Field-based', salMin:800, salMax:1200, salText:'RM800 - RM1,200/month', software:['AutoCAD'], posted:'2026-06-22', closing:'2026-08-05', source:'Company website', url:'https://tanjungsurvey.my/careers', status:'active' },
+  { id:'j007', companyId:'c003', title:'UAV Pilot / Drone Operator', type:'Full-time', level:'Junior', sector:'Drone and UAV', city:'Bayan Lepas', state:'Penang', workMode:'Field-based', salMin:3000, salMax:4500, salText:'RM3,000 - RM4,500', software:['Pix4D','Agisoft Metashape'], posted:'2026-06-08', closing:'2026-07-15', source:'Company website', url:'https://dronemap.asia/careers', status:'active' },
+  { id:'j008', companyId:'c003', title:'Photogrammetry Technician', type:'Full-time', level:'Junior', sector:'Photogrammetry', city:'Bayan Lepas', state:'Penang', workMode:'Onsite', salMin:2800, salMax:4000, salText:'RM2,800 - RM4,000', software:['Agisoft Metashape','Pix4D','QGIS'], posted:'2026-06-14', closing:'2026-07-22', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j007', status:'active' },
+  { id:'j009', companyId:'c003', title:'Drone Surveying Intern', type:'Internship', level:'Entry level', sector:'Drone and UAV', city:'Bayan Lepas', state:'Penang', workMode:'Onsite', salMin:800, salMax:1200, salText:'RM800 - RM1,200/month', software:['Pix4D','QGIS'], posted:'2026-06-22', closing:'2026-08-05', source:'Company website', url:'https://dronemap.asia/careers', status:'active' },
+  { id:'j010', companyId:'c004', title:'Hydrographic Surveyor', type:'Full-time', level:'Experienced', sector:'Hydrography', city:'Kuala Terengganu', state:'Terengganu', workMode:'Field-based', salMin:5000, salMax:7000, salText:'RM5,000 - RM7,000', software:['Qinsy','Qimera','ArcGIS'], posted:'2026-06-05', closing:'2026-07-10', source:'Company website', url:'https://hydrochart.my/careers', status:'active' },
+  { id:'j011', companyId:'c005', title:'Technical Sales Executive (Survey Equipment)', type:'Full-time', level:'Junior', sector:'Technical Sales and Support', city:'Petaling Jaya', state:'Selangor', workMode:'Onsite', salMin:3500, salMax:5000, salText:'RM3,500 - RM5,000 + commission', software:['AutoCAD','Trimble Business Center'], posted:'2026-06-16', closing:'2026-07-28', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j010', status:'active' },
+  { id:'j012', companyId:'c005', title:'GNSS Technical Support Engineer', type:'Full-time', level:'Junior', sector:'GNSS and Survey Equipment', city:'Petaling Jaya', state:'Selangor', workMode:'Onsite', salMin:4000, salMax:5500, salText:'RM4,000 - RM5,500', software:['Trimble Business Center','AutoCAD'], posted:'2026-06-19', closing:'2026-07-26', source:'JobStreet', url:'https://jobstreet.com.my/j011', status:'active' },
+  { id:'j013', companyId:'c005', title:'Sales Intern', type:'Internship', level:'Entry level', sector:'Technical Sales and Support', city:'Petaling Jaya', state:'Selangor', workMode:'Onsite', salMin:1000, salMax:1500, salText:'RM1,000 - RM1,500/month', software:['AutoCAD'], posted:'2026-06-24', closing:'2026-08-01', source:'Company website', url:'https://arctools.my/careers', status:'active' },
+  { id:'j014', companyId:'c009', title:'Full-Stack GIS Developer', type:'Full-time', level:'Experienced', sector:'Geospatial Software', city:'Cyberjaya', state:'Selangor', workMode:'Hybrid', salMin:6000, salMax:9000, salText:'RM6,000 - RM9,000', software:['MapLibre','PostGIS','Python','SQL'], posted:'2026-06-03', closing:'2026-07-20', source:'Company website', url:'https://maptech.my/careers', status:'active' },
+  { id:'j015', companyId:'c009', title:'Frontend Developer (Mapping)', type:'Full-time', level:'Junior', sector:'Geospatial Software', city:'Cyberjaya', state:'Selangor', workMode:'Hybrid', salMin:4500, salMax:6500, salText:'RM4,500 - RM6,500', software:['MapLibre','Leaflet','JavaScript'], posted:'2026-06-11', closing:'2026-07-22', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j013', status:'active' },
+  { id:'j016', companyId:'c009', title:'Web GIS Development Intern', type:'Internship', level:'Entry level', sector:'Geospatial Software', city:'Cyberjaya', state:'Selangor', workMode:'Hybrid', salMin:1200, salMax:1800, salText:'RM1,200 - RM1,800/month', software:['MapLibre','QGIS','Python'], posted:'2026-06-25', closing:'2026-08-10', source:'Company website', url:'https://maptech.my/careers', status:'active' },
+  { id:'j017', companyId:'c017', title:'Aerial Survey Technician', type:'Full-time', level:'Junior', sector:'Photogrammetry', city:'Subang', state:'Selangor', workMode:'Field-based', salMin:3200, salMax:4800, salText:'RM3,200 - RM4,800', software:['Agisoft Metashape','Pix4D','Global Mapper'], posted:'2026-06-09', closing:'2026-07-19', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j015', status:'active' },
+  { id:'j018', companyId:'c017', title:'UAV Mapping Intern', type:'Internship', level:'Entry level', sector:'Drone and UAV', city:'Subang', state:'Selangor', workMode:'Field-based', salMin:1000, salMax:1500, salText:'RM1,000 - RM1,500/month', software:['Pix4D','QGIS'], posted:'2026-06-26', closing:'2026-08-12', source:'Company website', url:'https://aerialvision.my/careers', status:'active' },
+  { id:'j019', companyId:'c023', title:'Cadastral Surveyor', type:'Full-time', level:'Experienced', sector:'Land Surveying', city:'Shah Alam', state:'Selangor', workMode:'Field-based', salMin:4500, salMax:6500, salText:'RM4,500 - RM6,500', software:['AutoCAD','Civil 3D','Trimble Business Center'], posted:'2026-06-12', closing:'2026-07-24', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j019', status:'active' },
+  { id:'j020', companyId:'c023', title:'Surveying Intern', type:'Internship', level:'Entry level', sector:'Land Surveying', city:'Shah Alam', state:'Selangor', workMode:'Field-based', salMin:900, salMax:1400, salText:'RM900 - RM1,400/month', software:['AutoCAD'], posted:'2026-06-25', closing:'2026-08-08', source:'Company website', url:'https://cadsol.my/careers', status:'active' },
+  { id:'j021', companyId:'c025', title:'Construction Surveyor', type:'Full-time', level:'Junior', sector:'Engineering Survey', city:'Kuala Lumpur', state:'Kuala Lumpur', workMode:'Field-based', salMin:3500, salMax:5000, salText:'RM3,500 - RM5,000', software:['AutoCAD','Civil 3D'], posted:'2026-06-14', closing:'2026-07-26', source:'LinkedIn', url:'https://linkedin.com/jobs/view/j021', status:'active' },
+  { id:'j022', companyId:'c025', title:'Site Engineering Intern', type:'Internship', level:'Entry level', sector:'Engineering Survey', city:'Kuala Lumpur', state:'Kuala Lumpur', workMode:'Field-based', salMin:1000, salMax:1500, salText:'RM1,000 - RM1,500/month', software:['AutoCAD'], posted:'2026-06-27', closing:'2026-08-14', source:'Company website', url:'https://buildtechsurvey.my/careers', status:'active' },
+];
+
+const EXPIRED_JOBS = [
+  { id:'e001', companyId:'c001', title:'GIS Technician', sector:'GIS and Geospatial', city:'Petaling Jaya', state:'Selangor', posted:'2026-06-01', closing:'2026-06-15', source:'LinkedIn' },
+  { id:'e002', companyId:'c001', title:'Cartographer', sector:'Mapping and Cartography', city:'Petaling Jaya', state:'Selangor', posted:'2026-04-10', closing:'2026-04-25', source:'Company website' },
+  { id:'e003', companyId:'c001', title:'Geospatial Intern', sector:'GIS and Geospatial', city:'Petaling Jaya', state:'Selangor', posted:'2026-01-15', closing:'2026-02-15', source:'Company website' },
+  { id:'e004', companyId:'c002', title:'Cadastral Surveyor', sector:'Land Surveying', city:'Johor Bahru', state:'Johor', posted:'2026-03-20', closing:'2026-04-10', source:'JobStreet' },
+  { id:'e005', companyId:'c003', title:'Drone Data Processor', sector:'Photogrammetry', city:'Bayan Lepas', state:'Penang', posted:'2026-05-01', closing:'2026-05-20', source:'LinkedIn' },
+  { id:'e006', companyId:'c003', title:'GIS Mapping Intern', sector:'GIS and Geospatial', city:'Bayan Lepas', state:'Penang', posted:'2025-10-10', closing:'2025-11-10', source:'Company website' },
+  { id:'e007', companyId:'c005', title:'Technical Sales Executive', sector:'Technical Sales and Support', city:'Petaling Jaya', state:'Selangor', posted:'2025-10-15', closing:'2025-10-30', source:'LinkedIn' },
+  { id:'e008', companyId:'c009', title:'Backend Developer (GIS)', sector:'Geospatial Software', city:'Cyberjaya', state:'Selangor', posted:'2026-02-01', closing:'2026-02-20', source:'Company website' },
+  { id:'e009', companyId:'c009', title:'GIS Analyst Intern', sector:'GIS and Geospatial', city:'Cyberjaya', state:'Selangor', posted:'2025-09-05', closing:'2025-10-05', source:'Company website' },
+  { id:'e010', companyId:'c010', title:'Utility Surveyor', sector:'Underground Utility Detection', city:'Petaling Jaya', state:'Selangor', posted:'2026-01-20', closing:'2026-02-10', source:'JobStreet' },
+  { id:'e011', companyId:'c017', title:'LiDAR Processing Intern', sector:'Photogrammetry', city:'Subang', state:'Selangor', posted:'2025-11-10', closing:'2025-12-10', source:'Company website' },
+  { id:'e012', companyId:'c023', title:'Cadastral Survey Assistant', sector:'Land Surveying', city:'Shah Alam', state:'Selangor', posted:'2026-03-01', closing:'2026-03-20', source:'LinkedIn' },
+  { id:'e013', companyId:'c023', title:'Strata Title Surveyor', sector:'Land Surveying', city:'Shah Alam', state:'Selangor', posted:'2025-12-05', closing:'2025-12-25', source:'JobStreet' },
+  { id:'e014', companyId:'c025', title:'Construction Surveyor', sector:'Engineering Survey', city:'Kuala Lumpur', state:'Kuala Lumpur', posted:'2026-04-15', closing:'2026-05-05', source:'LinkedIn' },
+  { id:'e015', companyId:'c025', title:'Setting Out Engineer', sector:'Engineering Survey', city:'Kuala Lumpur', state:'Kuala Lumpur', posted:'2025-11-20', closing:'2025-12-10', source:'JobStreet' },
+  { id:'e016', companyId:'c007', title:'Survey Technician', sector:'Land Surveying', city:'Kuching', state:'Sarawak', posted:'2026-02-10', closing:'2026-02-28', source:'LinkedIn' },
+  { id:'e017', companyId:'c007', title:'GPS Survey Assistant', sector:'Land Surveying', city:'Miri', state:'Sarawak', posted:'2025-10-01', closing:'2025-10-20', source:'JobStreet' },
+  { id:'e018', companyId:'c006', title:'Remote Sensing Analyst', sector:'Remote Sensing', city:'Kota Kinabalu', state:'Sabah', posted:'2026-01-10', closing:'2026-01-30', source:'LinkedIn' },
+  { id:'e019', companyId:'c015', title:'Heritage Survey Intern', sector:'Land Surveying', city:'Melaka', state:'Melaka', posted:'2025-09-15', closing:'2025-10-15', source:'Company website' },
+  { id:'e020', companyId:'c026', title:'Forest GIS Analyst', sector:'Environmental and Forestry', city:'Kuantan', state:'Pahang', posted:'2026-03-05', closing:'2026-03-25', source:'LinkedIn' },
+];
+
+/* ════════════════════════════════════════════════════════════════════════════
+   HELPERS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const haversine = (lat1, lng1, lat2, lng2) => {
+  const R = 6371, toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1), dLng = toRad(lng2 - lng1);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+};
+
+const getInitials = (name) => name.replace(/Sdn Bhd|Berhad|Bhd|Ltd|LLP/gi,'').trim().split(/\s+/).slice(0,2).map(w=>w[0]).join('').toUpperCase();
+const getCompany = (id) => COMPANIES.find(c => c.id === id);
+const formatDate = (d) => { const dt = new Date(d); return dt.toLocaleDateString('en-MY',{day:'numeric',month:'short',year:'numeric'}); };
+
+const STATS = (() => {
+  const totalCompanies = COMPANIES.length;
+  const statesCovered = new Set(COMPANIES.map(c => c.state)).size;
+  const activeJobs = JOBS.filter(j => j.status === 'active' && j.type !== 'Internship').length;
+  const activeInternships = JOBS.filter(j => j.status === 'active' && j.type === 'Internship').length;
+  const verified = COMPANIES.filter(c => c.verification === 'verified').length;
+  const companiesByState = {};
+  COMPANIES.forEach(c => { companiesByState[c.state] = (companiesByState[c.state]||0) + 1; });
+  const companiesBySector = {};
+  COMPANIES.forEach(c => {
+    companiesBySector[c.primarySector] = (companiesBySector[c.primarySector]||0) + 1;
+    c.secondarySectors?.forEach(s => { companiesBySector[s] = (companiesBySector[s]||0) + 1; });
+  });
+  const jobsByState = {};
+  JOBS.forEach(j => { jobsByState[j.state] = (jobsByState[j.state]||0) + 1; });
+  return { totalCompanies, statesCovered, activeJobs, activeInternships, verified, companiesByState, companiesBySector, jobsByState };
+})();
+
+const HIRING_TREND = [
+  { month:'Aug 25', jobs:8, internships:2 }, { month:'Sep 25', jobs:12, internships:3 },
+  { month:'Oct 25', jobs:10, internships:4 }, { month:'Nov 25', jobs:15, internships:2 },
+  { month:'Dec 25', jobs:9, internships:1 },  { month:'Jan 26', jobs:14, internships:5 },
+  { month:'Feb 26', jobs:11, internships:3 }, { month:'Mar 26', jobs:16, internships:4 },
+  { month:'Apr 26', jobs:13, internships:2 }, { month:'May 26', jobs:18, internships:3 },
+  { month:'Jun 26', jobs:15, internships:8 }, { month:'Jul 26', jobs:8, internships:5 },
+];
+
+const TOP_JOB_TITLES = [
+  { title:'GIS Analyst', count:14 }, { title:'Land Surveyor', count:11 },
+  { title:'Survey Assistant', count:9 }, { title:'UAV Pilot', count:7 },
+  { title:'GIS Intern', count:6 }, { title:'CAD Technician', count:5 },
+];
+
+const SALARY_BY_ROLE = [
+  { role:'GIS Analyst', min:3000, max:5500, median:4200 }, { role:'Land Surveyor', min:3500, max:7000, median:5200 },
+  { role:'UAV Pilot', min:3000, max:5000, median:4000 }, { role:'Hydro. Surveyor', min:4500, max:8000, median:6000 },
+  { role:'GIS Developer', min:5000, max:9000, median:6800 }, { role:'CAD Technician', min:2500, max:4000, median:3200 },
+];
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CONTEXT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const AppContext = createContext(null);
+const useApp = () => useContext(AppContext);
+
+/* ════════════════════════════════════════════════════════════════════════════
+   UI COMPONENTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const Badge = ({ children, color = 'slate', size = 'sm', className = '' }) => {
+  const colors = {
+    slate: 'bg-slate-100 text-slate-700', teal: 'bg-teal-100 text-teal-800',
+    blue: 'bg-blue-100 text-blue-800', emerald: 'bg-emerald-100 text-emerald-800',
+    amber: 'bg-amber-100 text-amber-800', rose: 'bg-rose-100 text-rose-800',
+    violet: 'bg-violet-100 text-violet-800', orange: 'bg-orange-100 text-orange-800',
+  };
+  const sizes = { xs: 'text-[10px] px-1.5 py-0.5', sm: 'text-xs px-2 py-0.5', md: 'text-sm px-2.5 py-1' };
+  return html`<span className=${`${colors[color]} ${sizes[size]} font-medium rounded-full inline-flex items-center gap-1 ${className}`}>${children}</span>`;
+};
+
+const VerificationBadge = ({ status, size = 'sm' }) => {
+  const v = VERIFICATION_LABELS[status] || VERIFICATION_LABELS.unverified;
+  const iconSize = size === 'xs' ? 10 : 12;
+  return html`
+    <span className="inline-flex items-center gap-1" title=${v.desc}>
+      <${Badge} color=${v.color} size=${size}>
+        <${Icon} name=${v.icon} size=${iconSize} /> ${v.label}
+      </>
+    </span>
+  `;
+};
+
+const SectorBadge = ({ sector, size = 'sm' }) => {
+  const s = SECTORS[sector];
+  if (!s) return null;
+  return html`
+    <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full"
+          style=${{ backgroundColor: s.color + '15', color: s.color }}>
+      <span className="w-1.5 h-1.5 rounded-full" style=${{ backgroundColor: s.color }}></span>
+      ${sector}
+    </span>
+  `;
+};
+
+const SoftwareBadge = ({ name, evidence, status }) => {
+  return html`
+    <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-lg bg-slate-50 border border-slate-200 text-xs">
+      <span className="font-medium text-slate-700">${name}</span>
+      ${status && html`<span className=${`text-[10px] px-1 py-0.5 rounded font-medium ${status === 'Confirmed' ? 'bg-emerald-100 text-emerald-700' : status === 'Community reported' ? 'bg-amber-100 text-amber-700' : 'bg-slate-200 text-slate-500'}`}>${status}</span>`}
+      ${evidence && html`<span className="text-slate-400 text-[10px]">via ${evidence}</span>`}
+    </div>
+  `;
+};
+
+const Button = ({ children, variant = 'primary', size = 'md', icon, className = '', ...props }) => {
+  const variants = {
+    primary: 'bg-teal-600 text-white hover:bg-teal-700 shadow-sm',
+    secondary: 'bg-white text-slate-700 border border-slate-300 hover:bg-slate-50',
+    ghost: 'text-slate-600 hover:bg-slate-100',
+    outline: 'border border-teal-600 text-teal-600 hover:bg-teal-50',
+    dark: 'bg-slate-900 text-white hover:bg-slate-800',
+  };
+  const sizes = { sm: 'text-sm px-3 py-1.5', md: 'text-sm px-4 py-2', lg: 'text-base px-5 py-2.5' };
+  return html`
+    <button className=${`inline-flex items-center justify-center gap-2 font-medium rounded-lg transition-all focus-ring ${variants[variant]} ${sizes[size]} ${className}`} ...${props}>
+      ${icon && html`<${Icon} name=${icon} size=${size === 'lg' ? 20 : 16} />`}
+      ${children}
+    </button>
+  `;
+};
+
+const Card = ({ children, className = '', padding = 'p-5' }) => html`
+  <div className=${`bg-white rounded-xl border border-slate-200 shadow-sm ${padding} ${className}`}>${children}</div>
+`;
+
+const MetricCard = ({ label, value, icon, color = 'teal', trend, subtitle }) => {
+  const bgColors = { teal: 'bg-teal-50 text-teal-600', blue: 'bg-blue-50 text-blue-600', violet: 'bg-violet-50 text-violet-600', amber: 'bg-amber-50 text-amber-600', emerald: 'bg-emerald-50 text-emerald-600', slate: 'bg-slate-100 text-slate-600' };
+  return html`
+    <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-shadow">
+      <div className="flex items-start justify-between mb-3">
+        <div className=${`w-10 h-10 rounded-lg flex items-center justify-center ${bgColors[color]}`}>
+          <${Icon} name=${icon} size=${20} />
+        </div>
+        ${trend && html`<span className="text-xs font-medium text-emerald-600 flex items-center gap-0.5"><${Icon} name="trending" size=${12} />${trend}</span>`}
+      </div>
+      <div className="text-2xl font-bold text-slate-900">${value}</div>
+      <div className="text-sm text-slate-500 mt-0.5">${label}</div>
+      ${subtitle && html`<div className="text-xs text-slate-400 mt-1">${subtitle}</div>`}
+    </div>
+  `;
+};
+
+const EmptyState = ({ icon = 'search', title, message, action }) => html`
+  <div className="flex flex-col items-center justify-center py-16 text-center">
+    <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mb-4">
+      <${Icon} name=${icon} size=${28} />
+    </div>
+    <h3 className="text-lg font-semibold text-slate-700 mb-1">${title}</h3>
+    <p className="text-sm text-slate-500 max-w-sm mb-4">${message}</p>
+    ${action}
+  </div>
+`;
+
+/* ════════════════════════════════════════════════════════════════════════════
+   CHART COMPONENTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const VBarChart = ({ data, height = 220, color = '#0d9488', valueKey = 'value', labelKey = 'label', showValues = true }) => {
+  const maxVal = Math.max(...data.map(d => d[valueKey]));
+  return html`
+    <div className="w-full">
+      <div className="flex items-end gap-1.5" style=${{ height: height + 'px' }}>
+        ${data.map((d, i) => {
+          const h = (d[valueKey] / maxVal) * (height - 30);
+          return html`
+            <div key=${i} className="flex-1 min-w-0 flex flex-col items-center justify-end group">
+              <div className="chart-bar w-full rounded-t-md cursor-pointer relative" 
+                   style=${{ height: Math.max(h, 4) + 'px', backgroundColor: color, minHeight: '4px' }}
+                   title=${`${d[labelKey]}: ${d[valueKey]}`}>
+                ${showValues && html`<span className="absolute -top-5 left-0 right-0 text-center text-xs font-semibold text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity">${d[valueKey]}</span>`}
+              </div>
+              <span className="text-[10px] text-slate-500 mt-1.5 truncate w-full text-center leading-tight">${d[labelKey]}</span>
+            </div>
+          `;
+        })}
+      </div>
+    </div>
+  `;
+};
+
+const HBarChart = ({ data, color = '#0d9488', valueKey = 'value', labelKey = 'label', showValues = true }) => {
+  const maxVal = Math.max(...data.map(d => d[valueKey]));
+  return html`
+    <div className="w-full space-y-2.5">
+      ${data.map((d, i) => html`
+        <div key=${i} className="flex items-center gap-3">
+          <span className="text-xs text-slate-600 w-28 flex-shrink-0 truncate text-right">${d[labelKey]}</span>
+          <div className="flex-1 bg-slate-100 rounded-md overflow-hidden h-6 relative">
+            <div className="chart-bar h-full rounded-md flex items-center justify-end px-2" 
+                 style=${{ width: `${(d[valueKey] / maxVal) * 100}%`, backgroundColor: color, minWidth: '24px' }}>
+              ${showValues && html`<span className="text-[10px] font-bold text-white">${d[valueKey]}</span>`}
+            </div>
+          </div>
+        </div>
+      `)}
+    </div>
+  `;
+};
+
+const LineChart = ({ data, height = 200, series = [{ key: 'jobs', label: 'Jobs', color: '#0d9488' }], xKey = 'month' }) => {
+  const allValues = series.flatMap(s => data.map(d => d[s.key]));
+  const maxVal = Math.max(...allValues);
+  const range = maxVal || 1;
+  const w = 100, h = 100;
+  const xStep = data.length > 1 ? w / (data.length - 1) : 0;
+  return html`
+    <div className="w-full">
+      <div className="flex gap-4 mb-3">
+        ${series.map((s, i) => html`
+          <div key=${i} className="flex items-center gap-1.5">
+            <span className="w-3 h-1.5 rounded-sm" style=${{ backgroundColor: s.color }}></span>
+            <span className="text-xs text-slate-600">${s.label}</span>
+          </div>
+        `)}
+      </div>
+      <div className="relative" style=${{ height: height + 'px' }}>
+        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" className="w-full h-full" style=${{ overflow: 'visible' }}>
+          <defs>
+            ${series.map((s, i) => html`
+              <linearGradient key=${i} id=${`grad-${i}`} x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0%" stopColor=${s.color} stopOpacity="0.2" />
+                <stop offset="100%" stopColor=${s.color} stopOpacity="0" />
+              </linearGradient>
+            `)}
+          </defs>
+          ${[25, 50, 75].map(y => html`<line key=${y} x1="0" y1=${y} x2=${w} y2=${y} stroke="#e2e8f0" strokeWidth="0.2" />`)}
+          ${series.map((s, si) => {
+            const points = data.map((d, i) => ({ x: i * xStep, y: h - ((d[s.key]) / range) * (h - 10) - 5 }));
+            const pathD = points.map((p, i) => (i === 0 ? 'M' : 'L') + p.x + ',' + p.y).join(' ');
+            const areaD = pathD + ` L${w},${h} L0,${h} Z`;
+            return html`
+              <path key=${`area-${si}`} d=${areaD} fill=${`url(#grad-${si})`} />
+              <path key=${`line-${si}`} d=${pathD} fill="none" stroke=${s.color} strokeWidth="0.8" strokeLinejoin="round" strokeLinecap="round" vectorEffect="non-scaling-stroke" />
+              ${points.map((p, i) => html`<circle key=${`pt-${si}-${i}`} cx=${p.x} cy=${p.y} r="0.8" fill="white" stroke=${s.color} strokeWidth="0.5" vectorEffect="non-scaling-stroke" />`)}
+            `;
+          })}
+        </svg>
+        <div className="absolute bottom-0 left-0 right-0 flex justify-between text-[10px] text-slate-400">
+          ${data.map((d, i) => html`<span key=${i} className=${i % 2 === 0 ? '' : 'hidden sm:inline'}>${d[xKey]}</span>`)}
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+const RangeBarChart = ({ data }) => {
+  const allVals = data.flatMap(d => [d.min, d.max]);
+  const globalMin = Math.min(...allVals);
+  const globalMax = Math.max(...allVals);
+  const range = globalMax - globalMin;
+  return html`
+    <div className="w-full space-y-3">
+      ${data.map((d, i) => {
+        const leftPct = ((d.min - globalMin) / range) * 100;
+        const widthPct = ((d.max - d.min) / range) * 100;
+        const medPct = ((d.median - globalMin) / range) * 100;
+        return html`
+          <div key=${i} className="flex items-center gap-3">
+            <span className="text-xs text-slate-600 w-28 flex-shrink-0 text-right truncate">${d.role}</span>
+            <div className="flex-1 relative h-6">
+              <div className="absolute inset-0 bg-slate-100 rounded-md"></div>
+              <div className="absolute h-full rounded-md bg-gradient-to-r from-teal-200 to-teal-400" 
+                   style=${{ left: leftPct + '%', width: widthPct + '%' }}></div>
+              <div className="absolute top-0 bottom-0 w-0.5 bg-slate-700" style=${{ left: medPct + '%' }}></div>
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-medium text-slate-700">RM${(d.min/1000).toFixed(1)}-${(d.max/1000).toFixed(1)}k</span>
+            </div>
+          </div>
+        `;
+      })}
+      <div className="flex justify-between text-[10px] text-slate-400 pt-1">
+        <span>RM${(globalMin/1000).toFixed(1)}k</span>
+        <span>RM${(globalMax/1000).toFixed(1)}k</span>
+      </div>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   DATA FRESHNESS INDICATOR
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const DataFreshnessIndicator = ({ variant = 'compact' }) => {
+  if (variant === 'full') return html`
+    <div className="flex items-center gap-2 text-xs text-slate-500">
+      <span className="relative flex h-2 w-2">
+        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+        <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+      </span>
+      <span>Data last updated: <strong className="text-slate-700">July 2026</strong> · Prototype data</span>
+    </div>
+  `;
+  return html`
+    <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+      <span>Updated Jul 2026</span>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   SIDEBAR
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const NAV_SECTIONS = [
+  { label: 'Explore', items: [
+    { id: 'overview', label: 'Overview', icon: 'home' },
+    { id: 'map', label: 'Company Map', icon: 'map' },
+    { id: 'directory', label: 'Company Directory', icon: 'grid' },
+    { id: 'jobs', label: 'Job Opportunities', icon: 'briefcase' },
+    { id: 'internships', label: 'Internship Opportunities', icon: 'grad' },
+  ]},
+  { label: 'Industry Insights', items: [
+    { id: 'industry-state', label: 'Industry by State', icon: 'barChart' },
+    { id: 'industry-sector', label: 'Industry by Sector', icon: 'pie' },
+    { id: 'hiring-trends', label: 'Hiring Trends', icon: 'trending' },
+    { id: 'salary-insights', label: 'Salary Insights', icon: 'dollar' },
+  ]},
+  { label: 'Community & Data', items: [
+    { id: 'submit-company', label: 'Submit a Company', icon: 'plus' },
+    { id: 'report-data', label: 'Report Incorrect Data', icon: 'flag' },
+    { id: 'data-sources', label: 'Data Sources', icon: 'database' },
+    { id: 'about', label: 'About the Project', icon: 'info' },
+  ]},
+];
+
+const Sidebar = () => {
+  const { currentPage, navigate, sidebarCollapsed, setSidebarCollapsed } = useApp();
+  const collapsed = sidebarCollapsed;
+
+  const NavItem = ({ item }) => {
+    const active = currentPage === item.id;
+    return html`
+      <button onClick=${() => navigate(item.id)}
+              className=${`w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-all focus-ring ${active ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-100'} ${collapsed ? 'justify-center' : ''}`}
+              title=${collapsed ? item.label : ''}>
+        <${Icon} name=${item.icon} size=${18} className=${active ? 'text-teal-600' : 'text-slate-400'} />
+        ${!collapsed && html`<span className="truncate">${item.label}</span>`}
+        ${!collapsed && active && html`<span className="ml-auto w-1.5 h-1.5 rounded-full bg-teal-500"></span>`}
+      </button>
+    `;
+  };
+
+  return html`
+    <aside className=${`${collapsed ? 'w-16' : 'w-64'} flex-shrink-0 bg-white border-r border-slate-200 flex flex-col transition-all duration-300 hidden lg:flex`}>
+      <div className=${`h-16 flex items-center border-b border-slate-200 ${collapsed ? 'px-2 justify-center' : 'px-4'}`}>
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center flex-shrink-0 shadow-sm">
+            <${Icon} name="mapPin" size=${20} className="text-white" />
+          </div>
+          ${!collapsed && html`
+            <div className="leading-none">
+              <div className="text-sm font-bold text-slate-900">GeoIndustry</div>
+              <div className="text-[11px] text-slate-500">Malaysia</div>
+            </div>
+          `}
+        </div>
+      </div>
+      <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
+        ${NAV_SECTIONS.map((section, si) => html`
+          <div key=${si}>
+            ${!collapsed && html`<div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">${section.label}</div>`}
+            <div className="space-y-0.5">
+              ${section.items.map(item => html`<${NavItem} key=${item.id} item=${item} />`)}
+            </div>
+          </div>
+        `)}
+      </nav>
+      <div className=${`border-t border-slate-200 p-3 ${collapsed ? 'text-center' : ''}`}>
+        ${collapsed ? html`<${Icon} name="clock" size=${14} className="text-slate-400 mx-auto" />` : html`<${DataFreshnessIndicator} />`}
+      </div>
+    </aside>
+  `;
+};
+
+const MobileSidebar = () => {
+  const { currentPage, navigate, mobileSidebarOpen, setMobileSidebarOpen } = useApp();
+  if (!mobileSidebarOpen) return null;
+  return html`
+    <div className="lg:hidden fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/40 anim-fade-in" onClick=${() => setMobileSidebarOpen(false)}></div>
+      <aside className="absolute left-0 top-0 bottom-0 w-72 bg-white anim-slide-in-left flex flex-col">
+        <div className="h-16 flex items-center justify-between px-4 border-b border-slate-200">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-teal-500 to-teal-700 flex items-center justify-center">
+              <${Icon} name="mapPin" size=${20} className="text-white" />
+            </div>
+            <div className="leading-none">
+              <div className="text-sm font-bold text-slate-900">GeoIndustry</div>
+              <div className="text-[11px] text-slate-500">Malaysia</div>
+            </div>
+          </div>
+          <button onClick=${() => setMobileSidebarOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg">
+            <${Icon} name="x" size=${20} />
+          </button>
+        </div>
+        <nav className="flex-1 overflow-y-auto py-4 px-2 space-y-5">
+          ${NAV_SECTIONS.map((section, si) => html`
+            <div key=${si}>
+              <div className="px-3 mb-1.5 text-[10px] font-semibold uppercase tracking-wider text-slate-400">${section.label}</div>
+              <div className="space-y-0.5">
+                ${section.items.map(item => html`
+                  <button key=${item.id} onClick=${() => navigate(item.id)}
+                          className=${`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${currentPage === item.id ? 'bg-teal-50 text-teal-700' : 'text-slate-600 hover:bg-slate-100'}`}>
+                    <${Icon} name=${item.icon} size=${18} className=${currentPage === item.id ? 'text-teal-600' : 'text-slate-400'} />
+                    <span>${item.label}</span>
+                  </button>
+                `)}
+              </div>
+            </div>
+          `)}
+        </nav>
+        <div className="border-t border-slate-200 p-3">
+          <${DataFreshnessIndicator} />
+        </div>
+      </aside>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   TOP HEADER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const GlobalSearch = ({ placeholder = 'Search company, location, sector, software or job' }) => {
+  const { searchQuery, setSearchQuery } = useApp();
+  return html`
+    <div className="relative flex-1 max-w-xl">
+      <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+        <${Icon} name="search" size=${18} />
+      </div>
+      <input type="text" value=${searchQuery} onChange=${e => setSearchQuery(e.target.value)}
+             placeholder=${placeholder}
+             className="w-full h-10 pl-10 pr-4 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-400 focus:bg-white focus:ring-2 focus:ring-teal-100 transition-all" />
+      ${searchQuery && html`
+        <button onClick=${() => setSearchQuery('')} className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600">
+          <${Icon} name="x" size=${16} />
+        </button>
+      `}
+    </div>
+  `;
+};
+
+const TopHeader = () => {
+  const { currentPage, setSidebarCollapsed, sidebarCollapsed, setMobileSidebarOpen, setFilterPanelOpen, userLocation, setUserLocation, activeFilterCount } = useApp();
+  const pageLabels = {
+    'overview': 'Overview', 'map': 'Company Map', 'directory': 'Company Directory',
+    'jobs': 'Job Opportunities', 'internships': 'Internship Opportunities',
+    'industry-state': 'Industry by State', 'industry-sector': 'Industry by Sector',
+    'hiring-trends': 'Hiring Trends', 'salary-insights': 'Salary Insights',
+    'submit-company': 'Submit a Company', 'report-data': 'Report Incorrect Data',
+    'data-sources': 'Data Sources', 'about': 'About the Project'
+  };
+
+  const handleLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        pos => setUserLocation({ lat: pos.coords.latitude, lng: pos.coords.longitude, name: 'My Location' }),
+        () => setUserLocation({ lat: 3.0738, lng: 101.5183, name: 'Shah Alam (demo)' })
+      );
+    } else {
+      setUserLocation({ lat: 3.0738, lng: 101.5183, name: 'Shah Alam (demo)' });
+    }
+  };
+
+  return html`
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center gap-3 px-4 lg:px-6 flex-shrink-0 z-30">
+      <button onClick=${() => setMobileSidebarOpen(true)} className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+        <${Icon} name="menu" size=${20} />
+      </button>
+      <button onClick=${() => setSidebarCollapsed(!sidebarCollapsed)} className="hidden lg:flex p-2 hover:bg-slate-100 rounded-lg">
+        <${Icon} name="menu" size=${20} />
+      </button>
+      <h1 className="text-lg font-semibold text-slate-900 hidden md:block">${pageLabels[currentPage] || 'Overview'}</h1>
+      <div className="hidden lg:block w-px h-6 bg-slate-200"></div>
+      <${GlobalSearch} />
+      <div className="flex items-center gap-2">
+        <button onClick=${handleLocation}
+                className="hidden md:inline-flex items-center gap-2 px-3 h-10 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all focus-ring">
+          <${Icon} name="locate" size=${16} className=${userLocation ? 'text-teal-600' : ''} />
+          <span className="hidden xl:inline">${userLocation ? userLocation.name : 'Use My Location'}</span>
+        </button>
+        <button onClick=${() => setFilterPanelOpen(true)}
+                className="relative inline-flex items-center gap-2 px-3 h-10 text-sm font-medium text-slate-600 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-lg transition-all focus-ring">
+          <${Icon} name="filter" size=${16} />
+          <span className="hidden sm:inline">Filters</span>
+          ${activeFilterCount > 0 && html`<span className="absolute -top-1 -right-1 w-5 h-5 bg-teal-600 text-white text-[10px] font-bold rounded-full flex items-center justify-center">${activeFilterCount}</span>`}
+        </button>
+        <div className="hidden xl:block w-px h-6 bg-slate-200 mx-1"></div>
+        <select className="hidden xl:block h-10 text-sm px-3 bg-slate-50 border border-slate-200 rounded-lg text-slate-600 focus:outline-none focus:border-teal-400">
+          <option>English</option>
+          <option>Bahasa Melayu</option>
+        </select>
+      </div>
+    </header>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   FILTER PANEL & CHIPS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const FilterPanel = () => {
+  const { filterPanelOpen, setFilterPanelOpen, filters, setFilters, userLocation } = useApp();
+  if (!filterPanelOpen) return null;
+
+  const update = (key, val) => setFilters({ ...filters, [key]: val });
+  const toggleArray = (key, val) => {
+    const arr = filters[key] || [];
+    update(key, arr.includes(val) ? arr.filter(v => v !== val) : [...arr, val]);
+  };
+  const clearAll = () => setFilters({ states: [], sectors: [], orgTypes: [], verification: [], hasJobs: false, hasInternships: false, hasWebsite: false, hasEmail: false, hasLinkedin: false, software: [], distance: null });
+
+  const ToggleChip = ({ active, onClick, children }) => html`
+    <button onClick=${onClick} className=${`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${active ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+      ${children}
+    </button>
+  `;
+
+  const SectionTitle = ({ children }) => html`<div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2.5">${children}</div>`;
+
+  return html`
+    <div className="fixed inset-0 z-40">
+      <div className="absolute inset-0 bg-black/30 anim-fade-in" onClick=${() => setFilterPanelOpen(false)}></div>
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-md bg-white shadow-xl anim-slide-in flex flex-col">
+        <div className="h-16 flex items-center justify-between px-5 border-b border-slate-200 flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <${Icon} name="filter" size=${20} className="text-teal-600" />
+            <h2 className="text-base font-semibold text-slate-900">Filters</h2>
+          </div>
+          <button onClick=${() => setFilterPanelOpen(false)} className="p-2 hover:bg-slate-100 rounded-lg"><${Icon} name="x" size=${20} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
+          ${userLocation && html`
+            <div>
+              <${SectionTitle}>Distance from ${userLocation.name}</${SectionTitle}>
+              <div className="flex flex-wrap gap-2">
+                ${[5, 10, 25, 50, 100, null].map(d => html`
+                  <${ToggleChip} key=${d} active=${filters.distance === d} onClick=${() => update('distance', d)}>
+                    ${d ? `${d} km` : 'Any distance'}
+                  </>
+                `)}
+              </div>
+            </div>
+          `}
+          <div>
+            <${SectionTitle}>State</${SectionTitle}>
+            <div className="flex flex-wrap gap-2">
+              ${MALAYSIAN_STATES.map(s => html`<${ToggleChip} key=${s} active=${(filters.states||[]).includes(s)} onClick=${() => toggleArray('states', s)}>${s}</>`)}
+            </div>
+          </div>
+          <div>
+            <${SectionTitle}>Sector</${SectionTitle}>
+            <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
+              ${SECTOR_NAMES.map(s => html`<${ToggleChip} key=${s} active=${(filters.sectors||[]).includes(s)} onClick=${() => toggleArray('sectors', s)}>${s}</>`)}
+            </div>
+          </div>
+          <div>
+            <${SectionTitle}>Organisation Type</${SectionTitle}>
+            <div className="flex flex-wrap gap-2">
+              ${ORG_TYPES.map(t => html`<${ToggleChip} key=${t} active=${(filters.orgTypes||[]).includes(t)} onClick=${() => toggleArray('orgTypes', t)}>${t}</>`)}
+            </div>
+          </div>
+          <div>
+            <${SectionTitle}>Verification Status</${SectionTitle}>
+            <div className="flex flex-wrap gap-2">
+              ${Object.keys(VERIFICATION_LABELS).map(v => html`<${ToggleChip} key=${v} active=${(filters.verification||[]).includes(v)} onClick=${() => toggleArray('verification', v)}>${VERIFICATION_LABELS[v].label}</>`)}
+            </div>
+          </div>
+          <div>
+            <${SectionTitle}>Opportunities</${SectionTitle}>
+            <div className="space-y-2">
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input type="checkbox" checked=${filters.hasJobs||false} onChange=${e => update('hasJobs', e.target.checked)} className="w-4 h-4 rounded text-teal-600 focus:ring-teal-400" />
+                Has active jobs
+              </label>
+              <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                <input type="checkbox" checked=${filters.hasInternships||false} onChange=${e => update('hasInternships', e.target.checked)} className="w-4 h-4 rounded text-teal-600 focus:ring-teal-400" />
+                Has active internships
+              </label>
+            </div>
+          </div>
+          <div>
+            <${SectionTitle}>Contact & Links</${SectionTitle}>
+            <div className="space-y-2">
+              ${['hasWebsite','hasEmail','hasLinkedin'].map(k => html`
+                <label key=${k} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                  <input type="checkbox" checked=${filters[k]||false} onChange=${e => update(k, e.target.checked)} className="w-4 h-4 rounded text-teal-600 focus:ring-teal-400" />
+                  ${k === 'hasWebsite' ? 'Has official website' : k === 'hasEmail' ? 'Has email address' : 'Has LinkedIn'}
+                </label>
+              `)}
+            </div>
+          </div>
+          <div>
+            <${SectionTitle}>Software</${SectionTitle}>
+            <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto">
+              ${SOFTWARE_LIST.map(s => html`<${ToggleChip} key=${s} active=${(filters.software||[]).includes(s)} onClick=${() => toggleArray('software', s)}>${s}</>`)}
+            </div>
+          </div>
+        </div>
+        <div className="border-t border-slate-200 p-4 flex items-center justify-between gap-3 flex-shrink-0">
+          <button onClick=${clearAll} className="text-sm font-medium text-slate-600 hover:text-slate-900">Clear all filters</button>
+          <button onClick=${() => setFilterPanelOpen(false)} className="px-4 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">Show results</button>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+const ActiveFilterChips = () => {
+  const { filters, setFilters } = useApp();
+  const chips = [];
+  (filters.states||[]).forEach(s => chips.push({ key: 'states', val: s, label: s }));
+  (filters.sectors||[]).forEach(s => chips.push({ key: 'sectors', val: s, label: s }));
+  (filters.orgTypes||[]).forEach(s => chips.push({ key: 'orgTypes', val: s, label: s }));
+  (filters.verification||[]).forEach(s => chips.push({ key: 'verification', val: s, label: VERIFICATION_LABELS[s]?.label || s }));
+  (filters.software||[]).forEach(s => chips.push({ key: 'software', val: s, label: s }));
+  if (filters.hasJobs) chips.push({ key: 'hasJobs', val: true, label: 'Has jobs' });
+  if (filters.hasInternships) chips.push({ key: 'hasInternships', val: true, label: 'Has internships' });
+  if (filters.hasWebsite) chips.push({ key: 'hasWebsite', val: true, label: 'Has website' });
+  if (filters.hasEmail) chips.push({ key: 'hasEmail', val: true, label: 'Has email' });
+  if (filters.hasLinkedin) chips.push({ key: 'hasLinkedin', val: true, label: 'Has LinkedIn' });
+  if (filters.distance) chips.push({ key: 'distance', val: filters.distance, label: `Within ${filters.distance} km` });
+
+  if (chips.length === 0) return null;
+  const remove = (chip) => {
+    if (typeof chip.val === 'boolean') {
+      setFilters({ ...filters, [chip.key]: false });
+    } else if (chip.key === 'distance') {
+      setFilters({ ...filters, distance: null });
+    } else {
+      setFilters({ ...filters, [chip.key]: (filters[chip.key]||[]).filter(v => v !== chip.val) });
+    }
+  };
+
+  return html`
+    <div className="flex flex-wrap items-center gap-1.5">
+      ${chips.map((c, i) => html`
+        <span key=${i} className="inline-flex items-center gap-1 px-2 py-0.5 text-xs font-medium bg-teal-50 text-teal-700 rounded-md border border-teal-200">
+          ${c.label}
+          <button onClick=${() => remove(c)} className="hover:text-teal-900"><${Icon} name="x" size=${12} /></button>
+        </span>
+      `)}
+      <button onClick=${() => setFilters({ states:[], sectors:[], orgTypes:[], verification:[], hasJobs:false, hasInternships:false, hasWebsite:false, hasEmail:false, hasLinkedin:false, software:[], distance:null })}
+              className="text-xs text-slate-500 hover:text-slate-700 underline">Clear all</button>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAP COMPONENT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const MAP_STYLES = {
+  light: { version: 8, sources: { carto: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png','https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } }, layers: [{ id: 'carto', type: 'raster', source: 'carto' }] },
+  streets: { version: 8, sources: { osm: { type: 'raster', tiles: ['https://tile.openstreetmap.org/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors' } }, layers: [{ id: 'osm', type: 'raster', source: 'osm' }] },
+  dark: { version: 8, sources: { carto: { type: 'raster', tiles: ['https://a.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://b.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png','https://c.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png'], tileSize: 256, attribution: '© OpenStreetMap contributors © CARTO' } }, layers: [{ id: 'carto', type: 'raster', source: 'carto' }] }
+};
+
+const MalaysiaMap = ({ companies, onMarkerClick, height = '100%', showControls = true, style: styleName = 'light', cluster = true, userLocation, compact = false }) => {
+  const containerRef = useRef(null);
+  const mapRef = useRef(null);
+  const [mapReady, setMapReady] = useState(false);
+  const [currentStyle, setCurrentStyle] = useState(styleName);
+  const [clusterEnabled, setClusterEnabled] = useState(cluster);
+  const [styleOpen, setStyleOpen] = useState(false);
+
+  useEffect(() => {
+    if (!containerRef.current || mapRef.current) return;
+    const map = new maplibregl.Map({
+      container: containerRef.current,
+      style: MAP_STYLES[currentStyle],
+      center: [111.5, 4.0],
+      zoom: 5.2,
+      attributionControl: { compact: true },
+    });
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: false }), 'top-right');
+    map.addControl(new maplibregl.FullscreenControl(), 'top-right');
+    map.addControl(new maplibregl.ScaleControl({ unit: 'metric' }), 'bottom-left');
+
+    map.on('load', () => {
+      setMapReady(true);
+      mapRef.current = map;
+      updateSources();
+    });
+
+    return () => { map.remove(); mapRef.current = null; };
+  }, []);
+
+  const updateSources = useCallback(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    const features = companies.map(c => ({
+      type: 'Feature',
+      geometry: { type: 'Point', coordinates: [c.lng, c.lat] },
+      properties: {
+        id: c.id, name: c.name, sector: c.primarySector,
+        sectorColor: SECTORS[c.primarySector]?.color || '#6b7280',
+        orgType: c.orgType, city: c.city, state: c.state,
+        verification: c.verification, activeJobs: c.activeJobs, activeInternships: c.activeInternships,
+        secondarySectors: (c.secondarySectors||[]).join(', '),
+      }
+    }));
+
+    const geojson = { type: 'FeatureCollection', features };
+
+    if (map.getSource('companies')) {
+      map.getSource('companies').setData(geojson);
+    } else {
+      map.addSource('companies', { type: 'geojson', data: geojson, cluster: clusterEnabled, clusterMaxZoom: 12, clusterRadius: 45 });
+
+      map.addLayer({
+        id: 'clusters', type: 'circle', source: 'companies', filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': ['step', ['get', 'point_count'], '#5eead4', 5, '#14b8a6', 15, '#0f766e'],
+          'circle-radius': ['step', ['get', 'point_count'], 18, 5, 22, 15, 28],
+          'circle-opacity': 0.85, 'circle-stroke-width': 2.5, 'circle-stroke-color': '#ffffff',
+        }
+      });
+      map.addLayer({
+        id: 'cluster-count', type: 'symbol', source: 'companies', filter: ['has', 'point_count'],
+        layout: { 'text-field': '{point_count_abbreviated}', 'text-size': 13, 'text-font': ['Noto Sans Regular'] },
+        paint: { 'text-color': '#ffffff' }
+      });
+      map.addLayer({
+        id: 'unclustered-point-halo', type: 'circle', source: 'companies', filter: ['!', ['has', 'point_count']],
+        paint: { 'circle-color': ['get', 'sectorColor'], 'circle-radius': compact ? 10 : 13, 'circle-opacity': 0.2 },
+      });
+      map.addLayer({
+        id: 'unclustered-point', type: 'circle', source: 'companies', filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-color': ['get', 'sectorColor'], 'circle-radius': compact ? 6 : 8,
+          'circle-stroke-width': 2, 'circle-stroke-color': '#ffffff', 'circle-opacity': 0.9,
+        }
+      }, 'unclustered-point-halo');
+
+      map.on('click', 'unclustered-point', (e) => {
+        const f = e.features[0];
+        const coords = f.geometry.coordinates.slice();
+        const p = f.properties;
+        const html = `
+          <div style="padding:14px;min-width:240px;font-family:Inter,sans-serif;">
+            <div style="font-weight:600;font-size:14px;color:#0f172a;margin-bottom:4px;line-height:1.3;">${p.name}</div>
+            <div style="font-size:12px;color:#64748b;margin-bottom:6px;">${p.city}, ${p.state}</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+              <span style="font-size:10px;padding:2px 6px;border-radius:4px;background:${p.sectorColor}15;color:${p.sectorColor};font-weight:500;">${p.sector}</span>
+            </div>
+            <div style="display:flex;gap:6px;font-size:11px;color:#64748b;margin-bottom:10px;">
+              ${p.activeJobs > 0 ? `<span>💼 ${p.activeJobs} jobs</span>` : ''}
+              ${p.activeInternships > 0 ? `<span>🎓 ${p.activeInternships} internships</span>` : ''}
+            </div>
+            <button id="view-profile-${p.id}" style="width:100%;padding:6px 12px;font-size:12px;font-weight:500;color:#fff;background:#0d9488;border:none;border-radius:6px;cursor:pointer;font-family:Inter,sans-serif;">View Profile</button>
+          </div>
+        `;
+        const popup = new maplibregl.Popup({ offset: 15, closeButton: true }).setLngLat(coords).setHTML(html).addTo(map);
+        setTimeout(() => {
+          const btn = document.getElementById(`view-profile-${p.id}`);
+          if (btn) btn.onclick = () => { onMarkerClick && onMarkerClick(p.id); popup.remove(); };
+        }, 50);
+      });
+      map.on('mouseenter', 'unclustered-point', () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', 'unclustered-point', () => map.getCanvas().style.cursor = '');
+
+      map.on('click', 'clusters', (e) => {
+        const f = e.features[0];
+        const zoom = map.getZoom();
+        map.getSource('companies').getClusterExpansionZoom(f.properties.cluster_id).then(targetZoom => {
+          map.flyTo({ center: f.geometry.coordinates.slice(), zoom: Math.max(targetZoom, zoom + 1.5), duration: 500 });
+        });
+      });
+      map.on('mouseenter', 'clusters', () => map.getCanvas().style.cursor = 'pointer');
+      map.on('mouseleave', 'clusters', () => map.getCanvas().style.cursor = '');
+    }
+  }, [companies, clusterEnabled, compact, onMarkerClick, mapReady]);
+
+  useEffect(() => { if (mapReady) updateSources(); }, [companies, mapReady, updateSources]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    if (map.getSource('companies')) {
+      map.getSource('companies').setClusterOptions({ cluster: clusterEnabled });
+    }
+  }, [clusterEnabled, mapReady]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+    map.setStyle(MAP_STYLES[currentStyle]);
+    map.once('style.load', () => updateSources());
+  }, [currentStyle]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !userLocation) return;
+    const el = document.createElement('div');
+    el.style.cssText = 'width:18px;height:18px;border-radius:50%;background:#2563eb;border:3px solid white;box-shadow:0 0 0 4px rgba(37,99,235,0.2);';
+    const marker = new maplibregl.Marker(el).setLngLat([userLocation.lng, userLocation.lat]).addTo(map);
+    new maplibregl.Popup({ offset: 20, closeButton: false }).setHTML(`<div style="padding:6px;font-size:12px;font-weight:500;">📍 ${userLocation.name}</div>`).setLngLat([userLocation.lng, userLocation.lat]).addTo(map);
+    map.flyTo({ center: [userLocation.lng, userLocation.lat], zoom: 11, duration: 1000 });
+    return () => marker.remove();
+  }, [userLocation, mapReady]);
+
+  const resetMap = () => mapRef.current?.flyTo({ center: [111.5, 4.0], zoom: 5.2, duration: 800 });
+
+  return html`
+    <div className="relative w-full" style=${{ height }}>
+      <div ref=${containerRef} className="absolute inset-0 rounded-xl overflow-hidden" />
+      ${showControls && mapReady && html`
+        <div className="absolute top-3 left-3 z-10 flex flex-col gap-2">
+          <button onClick=${resetMap} title="Reset map" className="w-9 h-9 bg-white rounded-lg shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50 transition-colors">
+            <${Icon} name="home" size=${16} />
+          </button>
+          <button onClick=${() => setClusterEnabled(!clusterEnabled)} title="Toggle clusters" className=${`w-9 h-9 rounded-lg shadow-md flex items-center justify-center transition-colors ${clusterEnabled ? 'bg-teal-600 text-white' : 'bg-white text-slate-600 hover:bg-slate-50'}`}>
+            <${Icon} name="layers" size=${16} />
+          </button>
+          <div className="relative">
+            <button onClick=${() => setStyleOpen(!styleOpen)} title="Map style" className="w-9 h-9 bg-white rounded-lg shadow-md flex items-center justify-center text-slate-600 hover:bg-slate-50">
+              <${Icon} name="map" size=${16} />
+            </button>
+            ${styleOpen && html`
+              <div className="absolute left-11 top-0 bg-white rounded-lg shadow-lg border border-slate-200 py-1 min-w-[100px] anim-fade-in">
+                ${Object.keys(MAP_STYLES).map(s => html`
+                  <button key=${s} onClick=${() => { setCurrentStyle(s); setStyleOpen(false); }}
+                          className=${`w-full text-left px-3 py-1.5 text-xs hover:bg-slate-100 ${currentStyle === s ? 'text-teal-600 font-semibold' : 'text-slate-600'}`}>
+                    ${s.charAt(0).toUpperCase() + s.slice(1)}
+                  </button>
+                `)}
+              </div>
+            `}
+          </div>
+        </div>
+      `}
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   COMPANY COMPONENTS
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const CompanyAvatar = ({ company, size = 48 }) => {
+  const color = SECTORS[company.primarySector]?.color || '#6b7280';
+  return html`
+    <div className="rounded-lg flex items-center justify-center font-bold text-white flex-shrink-0"
+         style=${{ width: size + 'px', height: size + 'px', backgroundColor: color, fontSize: (size * 0.32) + 'px' }}>
+      ${getInitials(company.name)}
+    </div>
+  `;
+};
+
+const CompanyCard = ({ company }) => {
+  const { navigate, userLocation, setSelectedCompany } = useApp();
+  const distance = userLocation ? haversine(userLocation.lat, userLocation.lng, company.lat, company.lng) : null;
+  return html`
+    <div onClick=${() => setSelectedCompany(company.id)}
+         className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md hover:border-teal-200 transition-all cursor-pointer focus-ring"
+         role="button" tabIndex=${0}
+         onKeyDown=${e => { if (e.key === 'Enter') setSelectedCompany(company.id); }}>
+      <div className="flex items-start gap-3 mb-3">
+        <${CompanyAvatar} company=${company} size=${44} />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-1.5">
+            <h3 className="font-semibold text-slate-900 text-sm leading-tight truncate">${company.name}</h3>
+            ${company.verification === 'verified' && html`<${Icon} name="checkCircle" size=${14} className="text-teal-500 flex-shrink-0" />`}
+          </div>
+          <div className="text-xs text-slate-500 mt-0.5 flex items-center gap-1">
+            <${Icon} name="pin" size=${11} />
+            ${company.city}, ${company.state}
+            ${distance && html`<span className="text-slate-400">· ${distance.toFixed(0)} km</span>`}
+          </div>
+        </div>
+      </div>
+      <p className="text-xs text-slate-500 line-clamp-2 mb-3">${company.desc}</p>
+      <div className="flex flex-wrap gap-1 mb-3">
+        <${SectorBadge} sector=${company.primarySector} />
+        ${(company.secondarySectors||[]).slice(0,1).map(s => html`<${SectorBadge} key=${s} sector=${s} />`)}
+      </div>
+      <div className="flex items-center justify-between pt-3 border-t border-slate-100">
+        <div className="flex items-center gap-3 text-xs text-slate-500">
+          ${company.activeJobs > 0 && html`<span className="flex items-center gap-1"><${Icon} name="briefcase" size=${12} />${company.activeJobs} jobs</span>`}
+          ${company.activeInternships > 0 && html`<span className="flex items-center gap-1"><${Icon} name="grad" size=${12} />${company.activeInternships} intern</span>`}
+          ${company.activeJobs === 0 && company.activeInternships === 0 && html`<span className="text-slate-400">No active openings</span>`}
+        </div>
+        <${Badge} color="slate" size="xs">${company.orgType}</${Badge}>
+      </div>
+    </div>
+  `;
+};
+
+const NearbyCompanyList = ({ companies, max = 5 }) => {
+  const { userLocation, navigate, setSelectedCompany } = useApp();
+  const location = userLocation || { lat: 3.0738, lng: 101.5183, name: 'Shah Alam (demo)' };
+  const nearby = companies.map(c => ({ ...c, distance: haversine(location.lat, location.lng, c.lat, c.lng) }))
+    .sort((a, b) => a.distance - b.distance).slice(0, max);
+  const totalWithin25 = companies.filter(c => haversine(location.lat, location.lng, c.lat, c.lng) <= 25).length;
+
+  return html`
+    <div>
+      <div className="flex items-center justify-between mb-3">
+        <div>
+          <h3 className="text-sm font-semibold text-slate-900">Nearby Companies</h3>
+          <p className="text-xs text-slate-500">${totalWithin25} organisations within 25 km of ${location.name}</p>
+        </div>
+        <button onClick=${() => navigate('map')} className="text-xs font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1">
+          View all <${Icon} name="arrowRight" size=${12} />
+        </button>
+      </div>
+      <div className="space-y-2">
+        ${nearby.map(c => html`
+          <div key=${c.id} onClick=${() => setSelectedCompany(c.id)}
+               className="flex items-center gap-3 p-2.5 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors">
+            <${CompanyAvatar} company=${c} size=${36} />
+            <div className="flex-1 min-w-0">
+              <div className="text-sm font-medium text-slate-800 truncate">${c.name}</div>
+              <div className="text-xs text-slate-500">${c.city}, ${c.state} · ${c.primarySector}</div>
+            </div>
+            <div className="text-right">
+              <div className="text-sm font-semibold text-teal-600">${c.distance.toFixed(1)}</div>
+              <div className="text-[10px] text-slate-400">km</div>
+            </div>
+          </div>
+        `)}
+      </div>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   COMPANY PROFILE DRAWER
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const TravelInfo = ({ company }) => {
+  const { userLocation } = useApp();
+  const distance = userLocation ? haversine(userLocation.lat, userLocation.lng, company.lat, company.lng) : null;
+  if (!distance) return html`<div className="text-xs text-slate-400 p-3 bg-slate-50 rounded-lg">Set your location to see travel info</div>`;
+  const drivingTime = Math.ceil(distance / 50 * 60); 
+  const ptTime = Math.ceil(distance / 30 * 60);
+  return html`
+    <div className="grid grid-cols-2 gap-3">
+      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50">
+        <${Icon} name="car" size=${16} className="text-slate-500" />
+        <div>
+          <div className="text-sm font-semibold text-slate-800">${drivingTime} min</div>
+          <div className="text-[10px] text-slate-500">~${distance.toFixed(1)} km (mock)</div>
+        </div>
+      </div>
+      <div className="flex items-center gap-2 p-2.5 rounded-lg bg-slate-50">
+        <${Icon} name="train" size=${16} className="text-slate-500" />
+        <div>
+          <div className="text-sm font-semibold text-slate-800">${ptTime} min</div>
+          <div className="text-[10px] text-slate-500">Public transport (mock)</div>
+        </div>
+      </div>
+      <a href=${`https://www.google.com/maps/dir/?api=1&destination=${company.lat},${company.lng}`} target="_blank" rel="noopener"
+         className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors">
+        <${Icon} name="navigation" size=${14} /> Google Maps
+      </a>
+      <a href=${`https://waze.com/ul?ll=${company.lat},${company.lng}&navigate=yes`} target="_blank" rel="noopener"
+         className="flex items-center justify-center gap-1.5 px-3 py-2 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200 transition-colors">
+        <${Icon} name="route" size=${14} /> Waze
+      </a>
+    </div>
+  `;
+};
+
+const CompanyProfileDrawer = () => {
+  const { selectedCompany, setSelectedCompany } = useApp();
+  const company = selectedCompany ? getCompany(selectedCompany) : null;
+  const [tab, setTab] = useState('overview');
+
+  useEffect(() => {
+    if (selectedCompany) setTab('overview');
+  }, [selectedCompany]);
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') setSelectedCompany(null); };
+    if (selectedCompany) document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, [selectedCompany]);
+
+  if (!company) return null;
+
+  const companyJobs = JOBS.filter(j => j.companyId === company.id && j.status === 'active' && j.type !== 'Internship');
+  const companyInternships = JOBS.filter(j => j.companyId === company.id && j.status === 'active' && j.type === 'Internship');
+  const companyExpired = EXPIRED_JOBS.filter(j => j.companyId === company.id);
+
+  const tabs = [
+    { id: 'overview', label: 'Overview' },
+    { id: 'services', label: 'Services & Software' },
+    { id: 'opportunities', label: `Opportunities (${companyJobs.length + companyInternships.length})` },
+    { id: 'trust', label: 'Data & Trust' },
+  ];
+
+  return html`
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-black/30 anim-fade-in" onClick=${() => setSelectedCompany(null)}></div>
+      <div className="absolute right-0 top-0 bottom-0 w-full max-w-2xl bg-white shadow-2xl anim-slide-in flex flex-col">
+        <div className="flex items-center justify-between p-4 border-b border-slate-200 flex-shrink-0">
+          <button onClick=${() => setSelectedCompany(null)} className="p-2 hover:bg-slate-100 rounded-lg">
+            <${Icon} name="x" size=${20} />
+          </button>
+          <div className="flex items-center gap-2">
+            <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-500" title="Claim this profile (future)">
+              <${Icon} name="star" size=${18} />
+            </button>
+            <button className="p-2 hover:bg-slate-100 rounded-lg text-slate-500" title="Share">
+              <${Icon} name="external" size=${18} />
+            </button>
+          </div>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-6 bg-gradient-to-b from-slate-50 to-white border-b border-slate-200">
+            <div className="flex items-start gap-4">
+              <${CompanyAvatar} company=${company} size=${64} />
+              <div className="flex-1 min-w-0">
+                <h2 className="text-xl font-bold text-slate-900">${company.name}</h2>
+                <div className="flex items-center gap-2 text-sm text-slate-500 mt-1">
+                  <${Icon} name="pin" size=${14} />
+                  ${company.city}, ${company.state}
+                  <span className="text-slate-300">·</span>
+                  <${Badge} color="slate" size="xs">${company.orgType}</${Badge}>
+                </div>
+                <div className="flex items-center gap-2 mt-2">
+                  <${VerificationBadge} status=${company.verification} size="xs" />
+                  <${SectorBadge} sector=${company.primarySector} />
+                </div>
+              </div>
+            </div>
+            <p className="text-sm text-slate-600 mt-4">${company.desc}</p>
+            <div className="flex flex-wrap gap-2 mt-4">
+              ${company.website && html`<a href=${company.website} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-teal-700 bg-teal-50 rounded-lg hover:bg-teal-100"><${Icon} name="globe" size=${12} /> Website</a>`}
+              ${company.linkedin && html`<a href=${company.linkedin} target="_blank" rel="noopener" className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-700 bg-blue-50 rounded-lg hover:bg-blue-100"><${Icon} name="linkedin" size=${12} /> LinkedIn</a>`}
+              ${company.email && html`<a href=${`mailto:${company.email}`} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-100 rounded-lg hover:bg-slate-200"><${Icon} name="mail" size=${12} /> Email</a>`}
+            </div>
+          </div>
+
+          <div className="sticky top-0 bg-white border-b border-slate-200 px-6 z-10">
+            <div className="flex gap-1 overflow-x-auto no-scrollbar">
+              ${tabs.map(t => html`
+                <button key=${t.id} onClick=${() => setTab(t.id)}
+                        className=${`px-3 py-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${tab === t.id ? 'border-teal-600 text-teal-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>
+                  ${t.label}
+                </button>
+              `)}
+            </div>
+          </div>
+
+          <div className="p-6 space-y-6">
+            ${tab === 'overview' && html`
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Address</h4>
+                  <div className="text-sm text-slate-700">${company.address}</div>
+                  <div className="text-sm text-slate-500">${company.postcode} ${company.city}, ${company.state}</div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Location & Travel</h4>
+                  <${TravelInfo} company=${company} />
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Contact Information</h4>
+                  <div className="grid grid-cols-1 gap-2">
+                    ${company.phone && html`<div className="flex items-center gap-2 text-sm text-slate-700"><${Icon} name="phone" size=${14} className="text-slate-400" /> ${company.phone}</div>`}
+                    ${company.email && html`<div className="flex items-center gap-2 text-sm text-slate-700"><${Icon} name="mail" size=${14} className="text-slate-400" /> ${company.email}</div>`}
+                    ${company.facebook && html`<a href=${company.facebook} target="_blank" rel="noopener" className="flex items-center gap-2 text-sm text-slate-700 hover:text-teal-600"><${Icon} name="facebook" size=${14} className="text-slate-400" /> Facebook Page</a>`}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Sectors</h4>
+                  <div className="flex flex-wrap gap-2">
+                    <${SectorBadge} sector=${company.primarySector} />
+                    ${(company.secondarySectors||[]).map(s => html`<${SectorBadge} key=${s} sector=${s} />`)}
+                  </div>
+                </div>
+              </div>
+            `}
+
+            ${tab === 'services' && html`
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Services & Specialisations</h4>
+                  <div className="flex flex-wrap gap-2">
+                    ${(company.services||[]).map(s => html`<span key=${s} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-slate-700 bg-slate-50 border border-slate-200 rounded-lg"><${Icon} name="check" size=${12} className="text-teal-500" /> ${s}</span>`)}
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Software & Technical Ecosystem</h4>
+                  <div className="flex flex-wrap gap-2">
+                    ${(company.software||[]).map((s, i) => html`<${SoftwareBadge} key=${i} name=${s.n} evidence=${s.e} status=${s.s} />`)}
+                  </div>
+                  <p className="text-[11px] text-slate-400 mt-3 flex items-center gap-1"><${Icon} name="info" size=${11} /> Software usage is tagged with evidence sources. Do not assume unverified usage.</p>
+                </div>
+              </div>
+            `}
+
+            ${tab === 'opportunities' && html`
+              <div className="space-y-5">
+                ${companyJobs.length > 0 && html`
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Active Jobs (${companyJobs.length})</h4>
+                    <div className="space-y-2">
+                      ${companyJobs.map(job => html`
+                        <a key=${job.id} href=${job.url} target="_blank" rel="noopener" className="block p-3 rounded-lg border border-slate-200 hover:border-teal-200 hover:bg-teal-50/30 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900">${job.title}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">${job.type} · ${job.workMode} · ${job.level}</div>
+                            </div>
+                            <${Icon} name="external" size=${14} className="text-slate-400" />
+                          </div>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                            <span>${job.salText || 'Salary not disclosed'}</span>
+                            <span>·</span>
+                            <span>Closing: ${formatDate(job.closing)}</span>
+                          </div>
+                        </a>
+                      `)}
+                    </div>
+                  </div>
+                `}
+                ${companyInternships.length > 0 && html`
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Active Internships (${companyInternships.length})</h4>
+                    <div className="space-y-2">
+                      ${companyInternships.map(job => html`
+                        <a key=${job.id} href=${job.url} target="_blank" rel="noopener" className="block p-3 rounded-lg border border-slate-200 hover:border-teal-200 hover:bg-teal-50/30 transition-colors">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <div className="text-sm font-semibold text-slate-900">${job.title}</div>
+                              <div className="text-xs text-slate-500 mt-0.5">${job.workMode}</div>
+                            </div>
+                            <${Icon} name="external" size=${14} className="text-slate-400" />
+                          </div>
+                          <div className="flex items-center gap-3 mt-2 text-xs text-slate-500">
+                            <span>${job.salText || 'Allowance not stated'}</span>
+                            <span>·</span>
+                            <span>Closing: ${formatDate(job.closing)}</span>
+                          </div>
+                        </a>
+                      `)}
+                    </div>
+                  </div>
+                `}
+                ${companyExpired.length > 0 && html`
+                  <div>
+                    <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Hiring History</h4>
+                    <p className="text-xs text-slate-500 mb-2">This organisation advertised ${companyExpired.length} geomatics-related opportunities in the last 12 months.</p>
+                    <div className="space-y-1.5">
+                      ${companyExpired.map(job => html`
+                        <div key=${job.id} className="flex items-center justify-between p-2 rounded-md bg-slate-50 text-xs">
+                          <div className="flex items-center gap-2">
+                            <${Icon} name="clock" size=${12} className="text-slate-400" />
+                            <span className="font-medium text-slate-700">${job.title}</span>
+                            <span className="text-slate-400">·</span>
+                            <span className="text-slate-500">${job.source}</span>
+                          </div>
+                          <span className="text-slate-400">${formatDate(job.closing)}</span>
+                        </div>
+                      `)}
+                    </div>
+                  </div>
+                `}
+                ${companyJobs.length === 0 && companyInternships.length === 0 && companyExpired.length === 0 && html`
+                  <${EmptyState} icon="briefcase" title="No opportunities listed" message="This company has no active or recorded past opportunities." />
+                `}
+              </div>
+            `}
+
+            ${tab === 'trust' && html`
+              <div className="space-y-5">
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Verification Status</h4>
+                  <div className="p-3 rounded-lg bg-slate-50 border border-slate-200">
+                    <div className="flex items-center gap-2 mb-2">
+                      <${VerificationBadge} status=${company.verification} />
+                    </div>
+                    <p className="text-xs text-slate-500">${company.notes || 'No additional notes.'}</p>
+                  </div>
+                </div>
+                <div>
+                  <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-2">Data Provenance</h4>
+                  <div className="space-y-1.5 text-sm">
+                    <div className="flex justify-between"><span className="text-slate-500">Source type</span><span className="font-medium text-slate-700">${company.sourceType}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Date added</span><span className="font-medium text-slate-700">${formatDate(company.dateAdded)}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Last checked</span><span className="font-medium text-slate-700">${formatDate(company.lastChecked)}</span></div>
+                    <div className="flex justify-between"><span className="text-slate-500">Last updated</span><span className="font-medium text-slate-700">${formatDate(company.lastUpdated)}</span></div>
+                  </div>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-lg hover:bg-slate-50">
+                    <${Icon} name="flag" size=${14} /> Report incorrect information
+                  </button>
+                  <button className="inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-teal-700 bg-teal-50 border border-teal-200 rounded-lg hover:bg-teal-100">
+                    <${Icon} name="edit" size=${14} /> Suggest an edit
+                  </button>
+                </div>
+              </div>
+            `}
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   JOB CARD COMPONENT
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const JobCard = ({ job }) => {
+  const { setSelectedCompany, userLocation } = useApp();
+  const company = getCompany(job.companyId);
+  const distance = userLocation && company ? haversine(userLocation.lat, userLocation.lng, company.lat, company.lng) : null;
+  return html`
+    <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm hover:shadow-md transition-shadow flex flex-col">
+      <div className="flex items-start gap-3 mb-3">
+        <${CompanyAvatar} company=${company} size=${40} />
+        <div className="flex-1 min-w-0">
+          <h3 className="font-semibold text-slate-900 text-sm leading-tight">${job.title}</h3>
+          <button onClick=${() => setSelectedCompany(company.id)} className="text-xs text-teal-600 hover:underline mt-0.5 block truncate">${company.name}</button>
+        </div>
+      </div>
+      <div className="flex flex-wrap gap-1.5 mb-3">
+        <${Badge} color="slate" size="xs">${job.type}</${Badge}>
+        <${Badge} color="blue" size="xs">${job.workMode}</${Badge}>
+        <${Badge} color="violet" size="xs">${job.level}</${Badge}>
+      </div>
+      <div className="flex items-center gap-3 text-xs text-slate-500 mb-3">
+        <span className="flex items-center gap-1"><${Icon} name="pin" size=${11} />${job.city}, ${job.state}</span>
+        ${distance && html`<span className="text-slate-400">· ${distance.toFixed(0)} km</span>`}
+      </div>
+      <div className="mt-auto pt-3 border-t border-slate-100 flex items-center justify-between">
+        <div>
+          <div className="text-sm font-semibold text-slate-800">${job.salText || 'Salary not disclosed'}</div>
+          <div className="text-[10px] text-slate-400">Closes: ${formatDate(job.closing)}</div>
+        </div>
+        <a href=${job.url} target="_blank" rel="noopener" className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">
+          Apply <${Icon} name="external" size=${12} />
+        </a>
+      </div>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   PAGES
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const OverviewPage = () => {
+  const { navigate, filteredCompanies, setSelectedCompany } = useApp();
+  const stateData = Object.entries(STATS.companiesByState).map(([k, v]) => ({ label: k, value: v })).sort((a, b) => b.value - a.value).slice(0, 8);
+  const sectorData = Object.entries(STATS.companiesBySector).map(([k, v]) => ({ label: k, value: v })).sort((a, b) => b.value - a.value).slice(0, 6);
+
+  return html`
+    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-2xl p-8 text-white relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-64 h-64 bg-teal-500/10 rounded-full blur-3xl -mr-20 -mt-20"></div>
+        <div className="relative z-10">
+          <h1 className="text-3xl lg:text-4xl font-bold mb-2">GeoIndustry Malaysia</h1>
+          <p className="text-slate-300 max-w-2xl mb-6">Discover geomatics, surveying, GIS, mapping and geospatial companies across Malaysia. Find organisations near you and explore the breadth of the industry.</p>
+          <div className="flex flex-wrap gap-3">
+            <button onClick=${() => navigate('map')} className="inline-flex items-center gap-2 px-5 py-2.5 bg-teal-600 hover:bg-teal-500 rounded-lg font-medium transition-colors">
+              <${Icon} name="map" size=${18} /> Explore Company Map
+            </button>
+            <button onClick=${() => navigate('directory')} className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/10 hover:bg-white/20 rounded-lg font-medium transition-colors">
+              <${Icon} name="grid" size=${18} /> Browse Directory
+            </button>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-2">
+            ${['GIS companies in Selangor','Survey firms near Shah Alam','Hydrography companies in Terengganu','Internship near UiTM','Companies using ArcGIS'].map(q => html`
+              <button key=${q} className="px-3 py-1 text-xs bg-white/5 border border-white/10 rounded-full text-slate-300 hover:bg-white/10 transition-colors">${q}</button>
+            `)}
+          </div>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <${MetricCard} label="Total companies" value=${STATS.totalCompanies} icon="building" color="teal" />
+        <${MetricCard} label="Regions covered" value=${STATS.statesCovered} icon="mapPin" color="blue" />
+        <${MetricCard} label="Active jobs" value=${STATS.activeJobs} icon="briefcase" color="violet" />
+        <${MetricCard} label="Active internships" value=${STATS.activeInternships} icon="grad" color="amber" />
+        <${MetricCard} label="Verified profiles" value=${STATS.verified} icon="checkCircle" color="emerald" />
+        <${Card} padding="p-5" className="flex flex-col justify-between">
+          <div className="flex items-center gap-2 text-xs text-slate-500 mb-2">
+            <${Icon} name="clock" size=${14} /> Data freshness
+          </div>
+          <div>
+            <div className="text-sm font-semibold text-slate-800">July 2026</div>
+            <div className="text-xs text-slate-400">Prototype data</div>
+          </div>
+        </>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2">
+          <${Card} padding="p-0" className="overflow-hidden h-[500px]">
+            <div className="p-4 border-b border-slate-100 flex items-center justify-between">
+              <div>
+                <h3 className="font-semibold text-slate-900">Industry Map</h3>
+                <p className="text-xs text-slate-500">Geomatics organisations across Malaysia</p>
+              </div>
+              <button onClick=${() => navigate('map')} className="text-xs font-medium text-teal-600 hover:text-teal-700 flex items-center gap-1">
+                Open full map <${Icon} name="arrowRight" size=${12} />
+              </button>
+            </div>
+            <div className="h-[440px] p-2">
+              <${MalaysiaMap} companies=${filteredCompanies} onMarkerClick=${setSelectedCompany} height="100%" showControls=${false} />
+            </div>
+          </>
+        </div>
+        <div className="space-y-6">
+          <${Card}>
+            <h3 className="font-semibold text-slate-900 mb-4">Companies by State</h3>
+            <${HBarChart} data=${stateData} color="#0d9488" />
+          </>
+          <${Card}>
+            <${NearbyCompanyList} companies=${filteredCompanies} />
+          </>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Hiring Trend (12 Months)</h3>
+          <${LineChart} data=${HIRING_TREND} height=${220} series=${[{ key: 'jobs', label: 'Jobs', color: '#0d9488' }, { key: 'internships', label: 'Internships', color: '#f59e0b' }]} />
+        </>
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Top Advertised Job Titles</h3>
+          <${HBarChart} data=${TOP_JOB_TITLES.map(t => ({ label: t.title, value: t.count }))} color="#2563eb" />
+        </>
+      </div>
+    </div>
+  `;
+};
+
+const CompanyMapPage = () => {
+  const { filteredCompanies, setSelectedCompany, userLocation, setUserLocation } = useApp();
+  const [listOpen, setListOpen] = useState(false);
+
+  return html`
+    <div className="flex h-full overflow-hidden">
+      <div className="flex-1 relative">
+        <${MalaysiaMap} companies=${filteredCompanies} onMarkerClick=${setSelectedCompany} userLocation=${userLocation} height="100%" />
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 flex gap-2">
+          <div className="flex items-center gap-1 bg-white rounded-lg shadow-md p-1">
+            ${LOCATION_PRESETS.slice(0, 4).map(loc => html`
+              <button key=${loc.name} onClick=${() => setUserLocation(loc)}
+                      className=${`px-3 py-1.5 text-xs font-medium rounded-md transition-colors ${userLocation?.name === loc.name ? 'bg-teal-600 text-white' : 'text-slate-600 hover:bg-slate-100'}`}>
+                ${loc.name}
+              </button>
+            `)}
+          </div>
+        </div>
+        <div className="absolute bottom-4 right-4 z-10 lg:hidden">
+          <button onClick=${() => setListOpen(!listOpen)} className="inline-flex items-center gap-2 px-4 py-2 bg-white shadow-md rounded-lg text-sm font-medium text-slate-700">
+            <${Icon} name="list" size=${16} /> List
+          </button>
+        </div>
+      </div>
+      <aside className=${`w-80 bg-white border-l border-slate-200 flex flex-col ${listOpen ? 'absolute inset-0 z-20' : 'hidden'} lg:flex`}>
+        <div className="h-16 px-4 border-b border-slate-200 flex items-center justify-between flex-shrink-0">
+          <div>
+            <h2 className="font-semibold text-slate-900 text-sm">Directory</h2>
+            <p className="text-xs text-slate-500">${filteredCompanies.length} organisations</p>
+          </div>
+          <button onClick=${() => setListOpen(false)} className="lg:hidden p-2 hover:bg-slate-100 rounded-lg">
+            <${Icon} name="x" size=${18} />
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto p-3 space-y-2">
+          ${filteredCompanies.map(c => html`<${CompanyCard} key=${c.id} company=${c} />`)}
+        </div>
+      </aside>
+    </div>
+  `;
+};
+
+const DirectoryPage = () => {
+  const { filteredCompanies } = useApp();
+  const [view, setView] = useState('grid');
+
+  return html`
+    <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">Company Directory</h2>
+          <p className="text-sm text-slate-500">Showing ${filteredCompanies.length} organisations</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <${ActiveFilterChips} />
+          <div className="flex bg-slate-100 rounded-lg p-1">
+            <button onClick=${() => setView('grid')} className=${`p-1.5 rounded-md ${view === 'grid' ? 'bg-white shadow-sm' : 'text-slate-500'}`}><${Icon} name="grid" size=${16} /></button>
+            <button onClick=${() => setView('list')} className=${`p-1.5 rounded-md ${view === 'list' ? 'bg-white shadow-sm' : 'text-slate-500'}`}><${Icon} name="list" size=${16} /></button>
+          </div>
+        </div>
+      </div>
+      ${filteredCompanies.length === 0 ? html`
+        <${EmptyState} icon="search" title="No companies found" message="Try adjusting your filters or search query." />
+      ` : html`
+        <div className=${view === 'grid' ? 'grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4' : 'space-y-3'}>
+          ${filteredCompanies.map(c => html`<${CompanyCard} key=${c.id} company=${c} />`)}
+        </div>
+      `}
+    </div>
+  `;
+};
+
+const JobsPage = ({ internshipOnly = false }) => {
+  const { filteredCompanies } = useApp();
+  const companyIds = new Set(filteredCompanies.map(c => c.id));
+  const jobs = JOBS.filter(j => j.status === 'active' && (internshipOnly ? j.type === 'Internship' : j.type !== 'Internship') && companyIds.has(j.companyId));
+
+  return html`
+    <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="text-xl font-bold text-slate-900">${internshipOnly ? 'Internship Opportunities' : 'Job Opportunities'}</h2>
+          <p className="text-sm text-slate-500">${jobs.length} active listings · External application links</p>
+        </div>
+        <${ActiveFilterChips} />
+      </div>
+      ${jobs.length === 0 ? html`
+        <${EmptyState} icon="briefcase" title="No opportunities found" message="Try adjusting your filters or search query." />
+      ` : html`
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          ${jobs.map(job => html`<${JobCard} key=${job.id} job=${job} />`)}
+        </div>
+      `}
+    </div>
+  `;
+};
+
+const IndustryByStatePage = () => {
+  const [selectedStates, setSelectedStates] = useState(['Selangor', 'Johor', 'Penang']);
+  const toggleState = (state) => setSelectedStates(selectedStates.includes(state) ? selectedStates.filter(s => s !== state) : [...selectedStates, state].slice(0, 3));
+
+  const stateData = MALAYSIAN_STATES.map(s => ({
+    name: s,
+    companies: STATS.companiesByState[s] || 0,
+    jobs: JOBS.filter(j => j.state === s).length,
+    internships: JOBS.filter(j => j.state === s && j.type === 'Internship').length,
+  })).sort((a, b) => b.companies - a.companies);
+
+  return html`
+    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Industry by State</h2>
+        <p className="text-sm text-slate-500">Compare geomatics industry distribution across Malaysian states</p>
+      </div>
+      <${Card}>
+        <h3 className="font-semibold text-slate-900 mb-1">State Comparison</h3>
+        <p className="text-xs text-slate-500 mb-4">Select up to 3 states to compare</p>
+        <div className="flex flex-wrap gap-2 mb-4">
+          ${MALAYSIAN_STATES.map(s => html`
+            <button key=${s} onClick=${() => toggleState(s)}
+                    className=${`px-3 py-1.5 text-xs font-medium rounded-lg border transition-all ${selectedStates.includes(s) ? 'bg-teal-50 border-teal-300 text-teal-700' : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-50'}`}>
+              ${s}
+            </button>
+          `)}
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          ${selectedStates.map(s => {
+            const data = stateData.find(d => d.name === s);
+            if (!data) return null;
+            return html`
+              <div key=${s} className="p-4 rounded-xl border border-slate-200 bg-slate-50">
+                <h4 className="font-bold text-slate-900 mb-3">${s}</h4>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between"><span className="text-slate-500">Companies</span><span className="font-semibold text-slate-800">${data.companies}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Active Jobs</span><span className="font-semibold text-slate-800">${data.jobs}</span></div>
+                  <div className="flex justify-between"><span className="text-slate-500">Internships</span><span className="font-semibold text-slate-800">${data.internships}</span></div>
+                </div>
+              </div>
+            `;
+          })}
+        </div>
+      </>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Companies by State</h3>
+          <${HBarChart} data=${stateData.slice(0, 10).map(d => ({ label: d.name, value: d.companies }))} color="#0d9488" />
+        </>
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Active Jobs by State</h3>
+          <${HBarChart} data=${stateData.filter(d => d.jobs > 0).map(d => ({ label: d.name, value: d.jobs }))} color="#2563eb" />
+        </>
+      </div>
+    </div>
+  `;
+};
+
+const IndustryBySectorPage = () => {
+  const sectorData = Object.entries(STATS.companiesBySector).map(([k, v]) => ({ label: k, value: v })).sort((a, b) => b.value - a.value);
+  return html`
+    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Industry by Sector</h2>
+        <p className="text-sm text-slate-500">Distribution of geomatics organisations by specialisation</p>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Companies by Sector</h3>
+          <${HBarChart} data=${sectorData} color="#0d9488" />
+        </>
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Sector Distribution</h3>
+          <div className="space-y-2">
+            ${sectorData.slice(0, 8).map((s, i) => html`
+              <div key=${i} className="flex items-center gap-2">
+                <span className="w-2 h-2 rounded-full" style=${{ backgroundColor: SECTORS[s.label]?.color || '#6b7280' }}></span>
+                <span className="text-xs text-slate-600 flex-1">${s.label}</span>
+                <span className="text-xs font-semibold text-slate-800">${s.value}</span>
+              </div>
+            `)}
+          </div>
+        </>
+      </div>
+    </div>
+  `;
+};
+
+const HiringTrendsPage = () => {
+  return html`
+    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Hiring Trends</h2>
+        <p className="text-sm text-slate-500">Geomatics job and internship advertisements over the last 12 months</p>
+      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Jobs vs Internships (Monthly)</h3>
+          <${LineChart} data=${HIRING_TREND} height=${250} series=${[{ key: 'jobs', label: 'Jobs', color: '#0d9488' }, { key: 'internships', label: 'Internships', color: '#f59e0b' }]} />
+        </>
+        <${Card}>
+          <h3 className="font-semibold text-slate-900 mb-4">Top Advertised Job Titles</h3>
+          <${HBarChart} data=${TOP_JOB_TITLES.map(t => ({ label: t.title, value: t.count }))} color="#2563eb" />
+        </>
+      </div>
+      <${Card}>
+        <div className="flex items-center gap-2 text-amber-700 bg-amber-50 p-3 rounded-lg mb-4">
+          <${Icon} name="alert" size=${16} />
+          <span className="text-xs font-medium">Note: Trends are based on prototype data. Conclusions are only drawn when sufficient data is available.</span>
+        </div>
+      </>
+    </div>
+  `;
+};
+
+const SalaryInsightsPage = () => {
+  return html`
+    <div className="p-4 lg:p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Salary Insights</h2>
+        <p className="text-sm text-slate-500">Advertised salary ranges across geomatics roles in Malaysia</p>
+      </div>
+      <${Card}>
+        <div className="flex items-center gap-2 text-amber-700 bg-amber-50 p-3 rounded-lg mb-4">
+          <${Icon} name="alert" size=${16} />
+          <span className="text-xs font-medium">Note: Salary data is based on advertised values in prototype job listings. Estimated salaries are clearly distinguished from verified advertised values.</span>
+        </div>
+      </>
+      <${Card}>
+        <h3 className="font-semibold text-slate-900 mb-4">Salary Range by Role (Monthly, RM)</h3>
+        <${RangeBarChart} data=${SALARY_BY_ROLE} />
+      </>
+    </div>
+  `;
+};
+
+const SimpleFormPage = ({ title, desc, type }) => {
+  return html`
+    <div className="p-4 lg:p-6 max-w-2xl mx-auto">
+      <div className="mb-6">
+        <h2 className="text-xl font-bold text-slate-900">${title}</h2>
+        <p className="text-sm text-slate-500">${desc}</p>
+      </div>
+      <${Card}>
+        <form className="space-y-4" onSubmit=${e => e.preventDefault()}>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Submission Type</label>
+            <select className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-400">
+              ${type === 'submit' ? html`<option>New company</option><option>Missing website</option><option>Suggest software</option>` : html`<option>Incorrect location</option><option>Expired listing</option><option>Missing phone number</option>`}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Company Name</label>
+            <input type="text" placeholder="e.g. GeoSpatial Solutions Sdn Bhd" className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Proposed Change / Details</label>
+            <textarea rows="4" placeholder="Provide details..." className="w-full p-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-400"></textarea>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Supporting Source URL</label>
+            <input type="url" placeholder="https://..." className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-400" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Submitter Email (Optional)</label>
+            <input type="email" placeholder="your@email.com" className="w-full h-10 px-3 text-sm bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:border-teal-400" />
+          </div>
+          <label className="flex items-start gap-2 text-xs text-slate-600 cursor-pointer">
+            <input type="checkbox" className="w-4 h-4 rounded text-teal-600 focus:ring-teal-400 mt-0.5" />
+            <span>I consent to my submission being reviewed by administrators and AI consistency checks. I confirm the provided information is accurate to the best of my knowledge.</span>
+          </label>
+          <div className="flex justify-end pt-2">
+            <button type="submit" className="px-5 py-2 text-sm font-medium text-white bg-teal-600 hover:bg-teal-700 rounded-lg transition-colors">Submit for Review</button>
+          </div>
+          <p className="text-[11px] text-slate-400 text-center">Submissions are reviewed before publishing. AI assists with consistency checks but human administrators make the final decision.</p>
+        </form>
+      </>
+    </div>
+  `;
+};
+
+const DataSourcesPage = () => {
+  return html`
+    <div className="p-4 lg:p-6 max-w-3xl mx-auto space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">Data Sources & Trust</h2>
+        <p className="text-sm text-slate-500">How GeoIndustry Malaysia collects and verifies data</p>
+      </div>
+      <${Card}>
+        <h3 className="font-semibold text-slate-900 mb-3">Verification Tiers</h3>
+        <div className="space-y-3">
+          ${Object.entries(VERIFICATION_LABELS).map(([k, v]) => html`
+            <div key=${k} className="flex items-start gap-3">
+              <${VerificationBadge} status=${k} />
+              <span className="text-xs text-slate-500 flex-1 mt-0.5">${v.desc}</span>
+            </div>
+          `)}
+        </div>
+      </>
+      <${Card}>
+        <h3 className="font-semibold text-slate-900 mb-3">Data Provenance</h3>
+        <p className="text-sm text-slate-600">Every company and job record includes data provenance fields:</p>
+        <ul className="mt-2 space-y-1.5 text-sm text-slate-500 list-disc pl-5">
+          <li>Source name and URL</li>
+          <li>Date collected, last checked, and last updated</li>
+          <li>Verification status and confidence level</li>
+          <li>Reviewer notes</li>
+        </ul>
+      </>
+    </div>
+  `;
+};
+
+const AboutPage = () => {
+  return html`
+    <div className="p-4 lg:p-6 max-w-3xl mx-auto space-y-6">
+      <div>
+        <h2 className="text-xl font-bold text-slate-900">About GeoIndustry Malaysia</h2>
+        <p className="text-sm text-slate-500">Discover Malaysia's geomatics industry.</p>
+      </div>
+      <${Card}>
+        <div className="prose prose-sm max-w-none text-slate-600">
+          <p>GeoIndustry Malaysia is a nationwide mapping and directory platform that helps students, fresh graduates, industry professionals, and career switchers discover geomatics-related companies, understand their services, explore nearby opportunities, and view the geographical distribution of Malaysia's geomatics industry.</p>
+          <p>The platform is not primarily a job portal. Its main purpose is to help users discover companies and organisations in the Malaysian geomatics industry that they may not know exist, especially companies located near their home, university, current workplace, district, or preferred state.</p>
+          <h4 className="font-semibold text-slate-900 mt-4 mb-2">Important Disclaimers</h4>
+          <ul className="list-disc pl-5 space-y-1">
+            <li>This is a prototype demonstration using mock data.</li>
+            <li>Users do not apply directly through GeoIndustry Malaysia.</li>
+            <li>The platform redirects users to official company websites and portals.</li>
+            <li>Map routing data is mocked for the prototype.</li>
+          </ul>
+        </div>
+      </>
+    </div>
+  `;
+};
+
+/* ════════════════════════════════════════════════════════════════════════════
+   MAIN APP
+   ════════════════════════════════════════════════════════════════════════════ */
+
+const App = () => {
+  const [currentPage, setCurrentPage] = useState('overview');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const [userLocation, setUserLocation] = useState(null);
+  const [selectedCompany, setSelectedCompany] = useState(null);
+  const [filters, setFilters] = useState({ states: [], sectors: [], orgTypes: [], verification: [], hasJobs: false, hasInternships: false, hasWebsite: false, hasEmail: false, hasLinkedin: false, software: [], distance: null });
+
+  const navigate = (page, params) => {
+    setCurrentPage(page);
+    setMobileSidebarOpen(false);
+    if (params?.companyId) setSelectedCompany(params.companyId);
+    if (page === 'map' || page === 'directory' || page === 'overview') {
+      // scroll to top or similar
+    }
+    window.scrollTo(0, 0);
+  };
+
+  const activeFilterCount = useMemo(() => {
+    let count = 0;
+    Object.keys(filters).forEach(k => {
+      if (Array.isArray(filters[k]) && filters[k].length > 0) count += filters[k].length;
+      else if (filters[k] === true) count += 1;
+      else if (k === 'distance' && filters[k] !== null) count += 1;
+    });
+    return count;
+  }, [filters]);
+
+  const filteredCompanies = useMemo(() => {
+    return COMPANIES.filter(c => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        const inName = c.name.toLowerCase().includes(q);
+        const inDesc = c.desc.toLowerCase().includes(q);
+        const inCity = c.city.toLowerCase().includes(q);
+        const inState = c.state.toLowerCase().includes(q);
+        const inSector = c.primarySector.toLowerCase().includes(q) || (c.secondarySectors || []).some(s => s.toLowerCase().includes(q));
+        const inSoftware = (c.software || []).some(s => s.n.toLowerCase().includes(q));
+        if (!inName && !inDesc && !inCity && !inState && !inSector && !inSoftware) return false;
+      }
+      if (filters.states?.length && !filters.states.includes(c.state)) return false;
+      if (filters.sectors?.length && !filters.sectors.includes(c.primarySector) && !(c.secondarySectors || []).some(s => filters.sectors.includes(s))) return false;
+      if (filters.orgTypes?.length && !filters.orgTypes.includes(c.orgType)) return false;
+      if (filters.verification?.length && !filters.verification.includes(c.verification)) return false;
+      if (filters.hasJobs && c.activeJobs === 0) return false;
+      if (filters.hasInternships && c.activeInternships === 0) return false;
+      if (filters.hasWebsite && !c.website) return false;
+      if (filters.hasEmail && !c.email) return false;
+      if (filters.hasLinkedin && !c.linkedin) return false;
+      if (filters.software?.length && !filters.software.some(s => (c.software || []).some(cs => cs.n === s))) return false;
+      if (filters.distance && userLocation) {
+        const dist = haversine(userLocation.lat, userLocation.lng, c.lat, c.lng);
+        if (dist > filters.distance) return false;
+      }
+      return true;
+    });
+  }, [searchQuery, filters, userLocation]);
+
+  const renderPage = () => {
+    switch (currentPage) {
+      case 'overview': return html`<${OverviewPage} />`;
+      case 'map': return html`<${CompanyMapPage} />`;
+      case 'directory': return html`<${DirectoryPage} />`;
+      case 'jobs': return html`<${JobsPage} />`;
+      case 'internships': return html`<${JobsPage} internshipOnly=${true} />`;
+      case 'industry-state': return html`<${IndustryByStatePage} />`;
+      case 'industry-sector': return html`<${IndustryBySectorPage} />`;
+      case 'hiring-trends': return html`<${HiringTrendsPage} />`;
+      case 'salary-insights': return html`<${SalaryInsightsPage} />`;
+      case 'submit-company': return html`<${SimpleFormPage} title="Submit a Company" desc="Suggest a new organisation to be added to the directory." type="submit" />`;
+      case 'report-data': return html`<${SimpleFormPage} title="Report Incorrect Data" desc="Help us keep the data accurate and trustworthy." type="report" />`;
+      case 'data-sources': return html`<${DataSourcesPage} />`;
+      case 'about': return html`<${AboutPage} />`;
+      default: return html`<${OverviewPage} />`;
+    }
+  };
+
+  const contextValue = {
+    currentPage, navigate, searchQuery, setSearchQuery,
+    sidebarCollapsed, setSidebarCollapsed,
+    mobileSidebarOpen, setMobileSidebarOpen,
+    filterPanelOpen, setFilterPanelOpen,
+    userLocation, setUserLocation,
+    selectedCompany, setSelectedCompany,
+    filters, setFilters,
+    filteredCompanies, activeFilterCount,
+  };
+
+  return html`
+    <${AppContext.Provider} value=${contextValue}>
+      <div className="flex h-screen overflow-hidden bg-slate-50">
+        <${Sidebar} />
+        <${MobileSidebar} />
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <${TopHeader} />
+          <main className="flex-1 overflow-y-auto">
+            ${renderPage()}
+          </main>
+        </div>
+        <${FilterPanel} />
+        <${CompanyProfileDrawer} />
+      </div>
+    </>
+  `;
+};
+
+ReactDOM.createRoot(document.getElementById('root')).render(html`<${App} />`);
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-07-21T10:23:33.593Z",
+  "source": "geomatics_companies_workbook",
+  "files": [
+    "Dashboard_Master.csv",
+    "Organization_Subfields.csv",
+    "Organization_Evidence.csv",
+    "Hiring_Signals.csv",
+    "Career_Path_Signals.csv",
+    "Unresolved_Records.csv"
+  ],
+  "status": {
+    "snapshotDate": "2026-07-19",
+    "uniqueOrganizations": 243,
+    "locations": 245,
+    "hiringSignals": 37,
+    "mapReadyLocations": 0,
+    "unresolvedRecords": 6,
+    "evidenceRecords": 63,
+    "careerPathSignals": 11
+  },
+  "issues": []
+}
