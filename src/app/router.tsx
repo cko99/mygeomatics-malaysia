@@ -1,2 +1,46 @@
-import { createBrowserRouter } from 'react-router-dom'; import { AppLayout } from '../components/Layout'; import { LandingPage } from '../pages/LandingPage'; import { DirectoryPage } from '../pages/DirectoryPage'; import { CompanyPage } from '../pages/CompanyPage'; import { JobsPage } from '../pages/JobsPage'; import { HiringInsightsPage, SalaryPage, SectorsPage, StatesPage } from '../pages/InsightsPages'; import { AboutPage, DataStatusPage, ExplorePage, InternshipsPage, MethodologyPage, NotFoundPage } from '../pages/StaticPages'; import { FormPage } from '../pages/FormPage'; import { MapPage } from '../pages/MapPage';
-export const router=createBrowserRouter([{path:'/',element:<LandingPage/>},{element:<AppLayout/>,children:[{path:'/explore',element:<ExplorePage/>},{path:'/map',element:<MapPage/>},{path:'/companies',element:<DirectoryPage/>},{path:'/companies/:organizationId',element:<CompanyPage/>},{path:'/jobs',element:<JobsPage/>},{path:'/internships',element:<InternshipsPage/>},{path:'/insights/states',element:<StatesPage/>},{path:'/insights/sectors',element:<SectorsPage/>},{path:'/insights/hiring',element:<HiringInsightsPage/>},{path:'/insights/salary',element:<SalaryPage/>},{path:'/submit',element:<FormPage mode="submit"/>},{path:'/report',element:<FormPage mode="report"/>},{path:'/methodology',element:<MethodologyPage/>},{path:'/about',element:<AboutPage/>},{path:'/data-status',element:<DataStatusPage/>}]},{path:'*',element:<NotFoundPage/>}]);
+import { createBrowserRouter } from 'react-router-dom';
+import { AppLayout } from '../components/Layout';
+import { LandingPage } from '../pages/LandingPage';
+import { DirectoryPage } from '../pages/DirectoryPage';
+import { CompanyPage } from '../pages/CompanyPage';
+import { JobsPage } from '../pages/JobsPage';
+import { HiringInsightsPage, SalaryPage, SectorsPage, StatesPage } from '../pages/InsightsPages';
+import {
+  AboutPage,
+  DataStatusPage,
+  DisclaimerPage,
+  ExplorePage,
+  InternshipsPage,
+  MethodologyPage,
+  NotFoundPage,
+  PrivacyPage,
+} from '../pages/StaticPages';
+import { FormPage } from '../pages/FormPage';
+import { MapPage } from '../pages/MapPage';
+
+export const router = createBrowserRouter([
+  { path: '/', element: <LandingPage /> },
+  {
+    element: <AppLayout />,
+    children: [
+      { path: '/explore', element: <ExplorePage /> },
+      { path: '/map', element: <MapPage /> },
+      { path: '/companies', element: <DirectoryPage /> },
+      { path: '/companies/:organizationId', element: <CompanyPage /> },
+      { path: '/jobs', element: <JobsPage /> },
+      { path: '/internships', element: <InternshipsPage /> },
+      { path: '/insights/states', element: <StatesPage /> },
+      { path: '/insights/sectors', element: <SectorsPage /> },
+      { path: '/insights/hiring', element: <HiringInsightsPage /> },
+      { path: '/insights/salary', element: <SalaryPage /> },
+      { path: '/submit', element: <FormPage mode="submit" /> },
+      { path: '/report', element: <FormPage mode="report" /> },
+      { path: '/methodology', element: <MethodologyPage /> },
+      { path: '/about', element: <AboutPage /> },
+      { path: '/disclaimer', element: <DisclaimerPage /> },
+      { path: '/privacy', element: <PrivacyPage /> },
+      { path: '/data-status', element: <DataStatusPage /> },
+    ],
+  },
+  { path: '*', element: <NotFoundPage /> },
+]);

@@ -2,6 +2,8 @@
 
 Target: Cloudflare Pages with Git integration.
 
+Production URL: <https://mygeomatics-malaysia.pages.dev>
+
 - Repository: `cko99/mygeomatics-malaysia`
 - Production branch: `main`
 - Build command: `npm run build`
@@ -13,7 +15,10 @@ Target: Cloudflare Pages with Git integration.
 `wrangler.jsonc` records the Pages project name and build output. `public/_redirects`
 enables direct-route SPA refresh. `public/_headers` supplies security headers.
 
-## Connect the project in Cloudflare
+## Cloudflare project configuration
+
+The GitHub repository is connected to the existing Cloudflare Pages project. A
+push to `main` triggers the production build. To recreate the project:
 
 1. Sign in to the Cloudflare dashboard and open **Workers & Pages**.
 2. Select **Create application**, then **Pages**, then **Connect to Git**.
@@ -29,6 +34,6 @@ enables direct-route SPA refresh. `public/_headers` supplies security headers.
 7. Save and deploy. Cloudflare will build `main` for production and other branches,
    including `feature/phase-1-static-mvp`, as preview deployments.
 
-Do not merge the feature pull request until its Cloudflare preview passes the route,
-responsive, theme, map, console, and security-header checks. Keep the feature branch
-until the production deployment from `main` is verified.
+Before a release is considered complete, confirm the GitHub quality checks and
+Cloudflare production deployment, then verify direct routes, responsive navigation,
+theme switching, directory search, the map disclosure and security headers.

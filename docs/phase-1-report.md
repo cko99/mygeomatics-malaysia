@@ -1,6 +1,6 @@
 # Phase 1 report
 
-Status: local implementation and verification complete. Production deployment is pending because the initial workspace had no Git remote or Cloudflare Pages project, and no Cloudflare CLI/auth context is installed.
+Status: implementation, repository integration and production deployment complete. The public MVP is available at https://mygeomatics-malaysia.pages.dev.
 
 Delivered locally: Vite/React/TypeScript application, complete route set, MyGeomatics branding, workbook snapshot importer, directory, stable profiles, hiring signals, honest internship/salary empty states, state/sector/hiring insights, MapLibre basemap modes, forms with local preview, methodology/about/data-status pages, light/dark/system themes, responsive shell, mobile drawer/bottom navigation and security headers.
 

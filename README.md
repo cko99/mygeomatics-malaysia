@@ -2,6 +2,17 @@
 
 MyGeomatics is an independent Malaysia Company & Career Map for discovering geomatics organisations, public hiring signals and industry coverage. Phase 1 is a static, read-only public prototype built with Vite, React, TypeScript, Tailwind CSS and MapLibre GL JS.
 
+**Live MVP:** <https://mygeomatics-malaysia.pages.dev>
+
+## MVP capabilities
+
+- Search and filter 243 organisations across 245 location records.
+- Review organisation profiles, source evidence and data-quality flags.
+- Explore public hiring signals without presenting them as guaranteed vacancies.
+- Compare state, sector and hiring coverage through transparent insights.
+- Preview data proposals or corrections locally, then submit them through a moderated GitHub issue.
+- Inspect the published snapshot date, unresolved records and coordinate limitations.
+
 ## Local setup
 
 ```bash
@@ -37,4 +48,4 @@ The static `dist/` output targets Cloudflare Pages. Configure build command `npm
 
 ## Current phase and limitations
 
-Phase 1 is implemented locally. The workbook currently contains no reviewed coordinates, insufficient internship-specific data and no reliable salary dataset. Missing coordinates stay in the directory and are never approximated. Submission/report forms are local previews only. Production deployment requires an existing Git remote and authorised Cloudflare Pages project; see [docs/deployment.md](docs/deployment.md).
+The public v0.2 MVP is deployed on Cloudflare Pages. The workbook currently contains no reviewed coordinates, insufficient internship-specific data and no reliable salary dataset. Missing coordinates stay in the directory and are never approximated. Data proposals and corrections are moderated through public GitHub issues; no application backend or user account system is enabled.
