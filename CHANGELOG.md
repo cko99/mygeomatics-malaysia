@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.3.0 - 2026-08-30
+
+- Added a coordinate verification workspace for directory records.
+- Added manual, rate-limited OpenStreetMap Nominatim searches with session caching and Malaysia bounds checks.
+- Added candidate previews plus external OpenStreetMap, Google satellite and Google Earth cross-check links.
+- Added a structured GitHub coordinate proposal workflow with provenance and reviewer checks.
+- Added a state-level research coverage hotspot while keeping unverified organisation coordinates off the map.
+- Documented map-source policies, privacy behaviour and the distinction between live search and real-time tracking.
+
 ## 0.2.0 - 2026-08-30
 
 - Published the production MVP at https://mygeomatics-malaysia.pages.dev.
