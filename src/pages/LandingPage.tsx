@@ -17,6 +17,7 @@ export function LandingPage() {
         <Brand />
         <nav>
           <Link to="/map">Explore map</Link>
+          <Link to="/coordinate-review">Coordinate review</Link>
           <Link to="/companies">Companies</Link>
           <Link to="/jobs">Opportunities</Link>
           <Link to="/insights/states">Industry insights</Link>
@@ -57,7 +58,7 @@ export function LandingPage() {
         <div>
           <Link to="/map">Map</Link><Link to="/companies">Companies</Link><Link to="/jobs">Jobs</Link>
           <Link to="/internships">Internships</Link><Link to="/insights/states">Insights</Link>
-          <Link to="/methodology">Methodology</Link><Link to="/data-status">Data Status</Link>
+          <Link to="/methodology">Methodology</Link><Link to="/data-status">Data Status</Link><Link to="/coordinate-review">Coordinate Review</Link>
           <Link to="/submit">Submit Data</Link><Link to="/report">Report Data</Link>
           <Link to="/about">About</Link>
           <a href="https://github.com/cko99/mygeomatics-malaysia" target="_blank" rel="noopener noreferrer">GitHub</a>

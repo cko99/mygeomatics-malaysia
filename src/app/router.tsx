@@ -17,6 +17,7 @@ import {
 } from '../pages/StaticPages';
 import { FormPage } from '../pages/FormPage';
 import { MapPage } from '../pages/MapPage';
+import { CoordinateReviewPage } from '../pages/CoordinateReviewPage';
 
 export const router = createBrowserRouter([
   { path: '/', element: <LandingPage /> },
@@ -25,6 +26,7 @@ export const router = createBrowserRouter([
     children: [
       { path: '/explore', element: <ExplorePage /> },
       { path: '/map', element: <MapPage /> },
+      { path: '/coordinate-review', element: <CoordinateReviewPage /> },
       { path: '/companies', element: <DirectoryPage /> },
       { path: '/companies/:organizationId', element: <CompanyPage /> },
       { path: '/jobs', element: <JobsPage /> },
