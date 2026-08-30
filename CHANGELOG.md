@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 - 2026-08-30
+
+- Fixed a MapLibre CSS collision that collapsed the map canvas to zero height.
+- Restored basemap imagery, state coverage hotspots and coordinate candidate previews.
+
 ## 0.3.0 - 2026-08-30
 
 - Added a coordinate verification workspace for directory records.
